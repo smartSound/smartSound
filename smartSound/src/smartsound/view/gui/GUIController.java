@@ -19,6 +19,7 @@ package smartsound.view.gui;
 
 import java.awt.Component;
 import java.awt.GridLayout;
+import java.awt.event.KeyEvent;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -236,9 +237,10 @@ public class GUIController
         return viewController.getFadeOut(playListUUID);
     }
 
-    public void executeHotkey(String hotkey)
+    public void executeHotkey(KeyEvent event)
     {
-        viewController.executeHotkey(hotkey);
+    	//TODO adjust
+        viewController.executeHotkey(event.toString());
     }
 
     public void setHotkey(String hotkey, Action action)

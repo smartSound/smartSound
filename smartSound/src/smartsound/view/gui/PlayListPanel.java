@@ -17,14 +17,26 @@
 
 package smartsound.view.gui;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.CardLayout;
+import java.awt.Cursor;
+import java.awt.Image;
+import java.awt.Point;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
+import java.awt.event.MouseWheelEvent;
 import java.io.File;
-import javax.swing.*;
+
+import javax.swing.ImageIcon;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
+
 import smartsound.controller.Launcher;
 
 
-public class PlayListPanel extends JPanel
+public class PlayListPanel extends JPanel implements IGUILadder
 {
 	
 	protected PlayList playList;
@@ -40,6 +52,7 @@ public class PlayListPanel extends JPanel
     protected boolean movedClockwise;
     protected boolean draggingSpeaker;
     private float lastKnownVolume;
+    private IGUILadder parent;
 
     public PlayListPanel(GUIController controller, PlayListDataModel playListDataModel)
     {
@@ -55,7 +68,8 @@ public class PlayListPanel extends JPanel
         imageList[2] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/repeat.png").toString())).getAbsolutePath())).getImage();
         imageList[3] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/settings.png").toString())).getAbsolutePath())).getImage();
         imageList[4] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/speaker.png").toString())).getAbsolutePath())).getImage();
-        setBorder(new PlayListPanelBorder("Playlist", imageList));
+        PlayListPanelBorder border = new PlayListPanelBorder(this, "Playlist", imageList);
+        setBorder(border);
         add(new JScrollPane(playList), "PLAYLIST");
         JPanel settingsPanel = new SettingsPanel(playListDataModel);
         add(settingsPanel, "SETTINGS");
@@ -63,105 +77,19 @@ public class PlayListPanel extends JPanel
 
             public void mouseMoved(MouseEvent e)
             {
-                setShowVolume(false);
-                PlayListPanel panel = (PlayListPanel)e.getSource();
-                int index = panel.posToIconIndex(e.getPoint());
-                if(index == -1)
-                {
-                    panel.setCursor(Cursor.getDefaultCursor());
-                } else
-                {
-                    panel.setCursor(Cursor.getPredefinedCursor(12));
-                    if(index == 4)
-                        setShowVolume(true);
-                }
+                
             }
 
             public void mouseExited(MouseEvent e)
             {
-                setShowVolume(false);
+                
             }
         }
 ;
-        addMouseMotionListener(motionAdapter);
-        addMouseListener(new MouseAdapter() {
-
-            public void mouseClicked(MouseEvent e)
-            {
-                PlayListPanel panel = (PlayListPanel)e.getSource();
-                int index = panel.posToIconIndex(e.getPoint());
-                if(panel.posToIconIndex(e.getPoint()) != -1)
-                    if(index == 0)
-                        panel.play();
-                    else
-                    if(index == 1)
-                        panel.stop();
-                    else
-                    if(index == 2)
-                        panel.toggleRepeating();
-                    else
-                    if(index == 3)
-                        ((CardLayout)panel.getLayout()).next(panel);
-            }
-
-            public void mousePressed(MouseEvent e)
-            {
-                PlayListPanel panel = (PlayListPanel)e.getSource();
-                int index = panel.posToIconIndex(e.getPoint());
-                if(index == 4)
-                    panel.draggingSpeaker = true;
-            }
-
-            public void mouseReleased(MouseEvent e)
-            {
-                PlayListPanel panel = (PlayListPanel)e.getSource();
-                panel.draggingSpeaker = false;
-            }
-        }
-);
-        addMouseMotionListener(new MouseMotionAdapter() {
-
-            public void mouseDragged(MouseEvent e)
-            {
-                PlayListPanel panel = (PlayListPanel)e.getSource();
-                if(!panel.draggingSpeaker)
-                    return;
-                int degrees = panel.posToAngle(e.getPoint());
-                float percentage = (float)((double)degrees / 360D);
-                if((double)percentage < 0.25D && movedClockwise)
-                    percentage = 1.0F;
-                else
-                if((double)percentage > 0.75D && !movedClockwise)
-                    percentage = 0.0F;
-                else
-                    movedClockwise = percentage > 0.5F;
-                setShowVolume(true);
-                panel.setVolume(percentage);
-                repaint();
-            }
-        }
-);
-        addMouseWheelListener(new MouseAdapter() {
-
-            public void mouseWheelMoved(MouseWheelEvent e)
-            {
-                PlayListPanel panel = (PlayListPanel)e.getSource();
-                if(panel.posToIconIndex(e.getPoint()) != 4)
-                {
-                    return;
-                } else
-                {
-                    float newVolume = lastKnownVolume;
-                    newVolume += 0.02F * (float)e.getUnitsToScroll();
-                    newVolume = Math.max(0.0F, newVolume);
-                    newVolume = Math.min(1.0F, newVolume);
-                    setShowVolume(true);
-                    panel.setVolume(newVolume);
-                    return;
-                }
-            }
-        }
-);
+        addMouseMotionListener(border);
+        addMouseListener(border);
+        addMouseMotionListener(border);
+        addMouseWheelListener(border);
         playList.contentsChanged(null);
     }
 
@@ -216,9 +144,23 @@ public class PlayListPanel extends JPanel
     public void updateVolume(float volume)
     {
         PlayListPanelBorder border = (PlayListPanelBorder)getBorder();
-        lastKnownVolume = volume;
-        border.setVolume(volume);
+        border.updateVolume(volume);
     }
+
+	@Override
+	public GUIController getGUIController() {
+		return parent.getGUIController();
+	}
+
+	@Override
+	public void propagateHotkey(KeyEvent event) {
+		parent.propagateHotkey(event);
+	}
+
+	@Override
+	public void propagatePopupMenu(JPopupMenu menu, MouseEvent e) {
+		parent.propagatePopupMenu(menu, e);
+	}
 
 
 }
