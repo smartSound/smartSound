@@ -505,6 +505,8 @@ public class DefaultController extends AbstractController {
 			map.addPropertyMap(list.getPropertyMap());
 		}
 		
+		map.addPropertyMap(viewController.getPropertyMap());
+		
 		map.saveToIni(savePath);
 	}
 
@@ -519,13 +521,19 @@ public class DefaultController extends AbstractController {
 		playListMap.clear();
 		
 		
-		PlayList newList = null;
 		try {
-			newList = new PlayList(map.getNestedMaps().get(0));
+			for (PropertyMap pMap : map.getNestedMaps()) {
+				if (pMap.get("type").equals(PlayList.class.getCanonicalName())) {
+					addPlayList(new PlayList(pMap));
+				} else if (pMap.get("type").equals(ViewController.class.getCanonicalName())) {
+						viewController.loadFromPropertyMap(pMap);
+				}
+			}
 		} catch (LoadingException e) {
 			e.printStackTrace();
 		}
-		addPlayList(newList);
+		
+		
 	}
 
 	@Override

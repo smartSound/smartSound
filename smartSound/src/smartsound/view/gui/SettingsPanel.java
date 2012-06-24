@@ -21,9 +21,13 @@ import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.util.UUID;
 
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
+import javax.swing.JPopupMenu;
 import javax.swing.JSlider;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
@@ -32,16 +36,28 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
+import smartsound.view.Action;
 
-public class SettingsPanel extends javax.swing.JPanel implements ListDataListener {
+
+public class SettingsPanel extends javax.swing.JPanel implements ListDataListener, IGUILadder {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -6840626218594923611L;
 	
-	protected PlayListDataModel playListDataModel;
 	protected boolean editing = false;
+	
+	private IGUILadder parent;
+	private UUID playListUUID;
+	private Action randomizeListAction;
+    private Action randomizeVolumeFromAction;
+    private Action randomizeVolumeToAction;
+    private Action stopAfterEachSoundAction;
+    private Action fadeInAction;
+    private Action fadeOutAction;
+    private Action overlapAction;
+	
 	
 	private JCheckBox randomizeCheckBox = new JCheckBox();
 	private JLabel randomizeLabel = new JLabel("Randomize playlist");
@@ -64,16 +80,27 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 	private JLabel overlapLabel = new JLabel("Overlap");
 	private JSpinner overlapSpinner = new JSpinner(new SpinnerNumberModel(0,0,9.9,0.1));
 	
-	public SettingsPanel(final PlayListDataModel playListDataModel) {
+	public SettingsPanel(IGUILadder parent, PlayListDataModel playListDataModel) {
 		super(new GridBagLayout());
-		this.playListDataModel = playListDataModel;
+		
+		this.parent = parent;
+		playListUUID = playListDataModel.getUUID();
+		
+		randomizeListAction = parent.getGUIController().getRandomizeListAction(playListUUID);
+        randomizeVolumeFromAction = parent.getGUIController().getRandomizeVolumeFromAction(playListUUID);
+        randomizeVolumeToAction = parent.getGUIController().getRandomizeVolumeToAction(playListUUID);
+        stopAfterEachSoundAction = parent.getGUIController().getStopAfterEachSoundAction(playListUUID);
+        fadeInAction = parent.getGUIController().getFadeInAction(playListUUID);
+        fadeOutAction = parent.getGUIController().getFadeOutAction(playListUUID);
+        overlapAction = parent.getGUIController().getOverlapAction(playListUUID);
+		
 		
 		randomizeCheckBox.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(ChangeEvent e) {
 				JCheckBox source = (JCheckBox) e.getSource();
 				
-				if (!editing) playListDataModel.setRandomizeList(source.isSelected());
+				if (!editing) randomizeListAction.execute(source.isSelected());
 			}	
 		});
 		
@@ -82,7 +109,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			public void stateChanged(ChangeEvent e) {
 				JCheckBox source = (JCheckBox) e.getSource();
 				
-				if (!editing) playListDataModel.setStopAfterEachSound(source.isSelected());
+				if (!editing) stopAfterEachSoundAction.execute(source.isSelected());
 			}	
 		});
 		
@@ -96,7 +123,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 					playAtRandomVolumesSliderTo.setValue(source.getValue());
 				}
 				if (!source.getValueIsAdjusting() && !editing) {
-					playListDataModel.setRandomizeVolumeFrom(source.getValue() / 100.0f);
+					randomizeVolumeFromAction.execute(source.getValue() / 100.0f);
 				}
 			}
 		});
@@ -110,7 +137,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 					playAtRandomVolumesSliderFrom.setValue(source.getValue());
 				}
 				if (!source.getValueIsAdjusting() && !editing) {
-					playListDataModel.setRandomizeVolumeTo(source.getValue() / 100.0f);
+					randomizeVolumeToAction.execute(source.getValue() / 100.0f);
 				}
 			}
 		});
@@ -119,7 +146,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			@Override
 			public void stateChanged(ChangeEvent e) {
 				JSpinner source = (JSpinner) e.getSource();
-				if (!editing) playListDataModel.setFadeIn(((Number) source.getValue()).intValue()*1000);
+				if (!editing) fadeInAction.execute((int) (((Number) source.getValue()).doubleValue()*1000));
 			}
 		});
 		fadeInSpinner.setEditor(new JSpinner.NumberEditor(fadeInSpinner, "0.0 s"));
@@ -129,7 +156,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			@Override
 			public void stateChanged(ChangeEvent e) {
 				JSpinner source = (JSpinner) e.getSource();
-				if (!editing) playListDataModel.setFadeOut(((Number) source.getValue()).intValue()*1000);
+				if (!editing) fadeOutAction.execute((int) (((Number) source.getValue()).doubleValue()*1000));
 			}
 		});
 		fadeOutSpinner.setEditor(new JSpinner.NumberEditor(fadeOutSpinner, "0.0 s"));
@@ -139,7 +166,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			@Override
 			public void stateChanged(ChangeEvent e) {
 				JSpinner source = (JSpinner) e.getSource();
-				if (!editing) playListDataModel.setOverlap(((Number) source.getValue()).intValue()*1000);
+				if (!editing) overlapAction.execute((int) (((Number) source.getValue()).doubleValue()*1000));
 			}
 		});
 		overlapSpinner.setEditor(new JSpinner.NumberEditor(overlapSpinner, "0.0 s"));
@@ -275,13 +302,13 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 	
 	private void refreshValues() {
 		editing = true;
-		randomizeCheckBox.setSelected(playListDataModel.isRandomizeList());
-		stopAfterEachSoundCheckBox.setSelected(playListDataModel.isStopAfterEachSound());
-		playAtRandomVolumesSliderFrom.setValue((int) playListDataModel.getRandomizeVolumeFrom()*100);
-		playAtRandomVolumesSliderTo.setValue((int) playListDataModel.getRandomizeVolumeTo()*100);
-		fadeInSpinner.setValue(playListDataModel.getFadeIn()/1000.0);
-		fadeOutSpinner.setValue((int) playListDataModel.getFadeOut()/1000.0);
-		overlapSpinner.setValue((int) playListDataModel.getOverlap()/1000.0);
+		randomizeCheckBox.setSelected(parent.getGUIController().isRandomizeList(playListUUID));
+		stopAfterEachSoundCheckBox.setSelected(parent.getGUIController().isStopAfterEachSound(playListUUID));
+		playAtRandomVolumesSliderFrom.setValue((int) (parent.getGUIController().getRandomizeVolumeFrom(playListUUID)*100));
+		playAtRandomVolumesSliderTo.setValue((int) (parent.getGUIController().getRandomizeVolumeTo(playListUUID)*100));
+		fadeInSpinner.setValue(parent.getGUIController().getFadeIn(playListUUID)/1000.0);
+		fadeOutSpinner.setValue((int) parent.getGUIController().getFadeOut(playListUUID)/1000.0);
+		overlapSpinner.setValue((int) parent.getGUIController().getOverlap(playListUUID)/1000.0);
 		editing = false;
 	}
 
@@ -300,5 +327,20 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 	public void intervalRemoved(ListDataEvent arg0) {
 		// TODO Auto-generated method stub
 		
+	}
+
+	@Override
+	public GUIController getGUIController() {
+		return parent.getGUIController();
+	}
+
+	@Override
+	public void propagateHotkey(KeyEvent event) {
+		parent.propagateHotkey(event);
+	}
+
+	@Override
+	public void propagatePopupMenu(JPopupMenu menu, MouseEvent e) {
+		parent.propagatePopupMenu(menu,e);
 	}
 }

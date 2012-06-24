@@ -30,29 +30,65 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.Rectangle2D;
+import java.io.File;
+import java.util.UUID;
 
+import javax.swing.ImageIcon;
+import javax.swing.JPopupMenu;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.ListDataEvent;
+import javax.swing.event.ListDataListener;
 
-public class PlayListPanelBorder extends TitledBorder implements MouseListener, MouseMotionListener, MouseWheelListener
+import smartsound.controller.Launcher;
+import smartsound.view.Action;
+
+public class PlayListPanelBorder extends TitledBorder implements MouseListener, MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener
 {
 
-	private PlayListPanel panel;
+	private IGUILadder parent;
+	private PlayListPanel panel; //ONLY for determination of border insets
 	private float lastKnownVolume;
 	protected boolean movedClockwise = false;
+	private UUID playListUUID;
+	private Action playAction;
+    private Action stopAction;
+    private Action repeatListAction;
 	
-    public PlayListPanelBorder(PlayListPanel panel, String title, Image imageList[])
+    public PlayListPanelBorder(IGUILadder parent, PlayListDataModel model, String title)
     {
         super(title);
-        this.panel = panel;
-        this.imageList = imageList;
-        activityList = new boolean[imageList.length];
+        this.parent = parent;
+        this.panel = new PlayListPanel(this, this, model);
         this.title = title;
+        playListUUID = model.getUUID();
+        model.addListDataListener(this);
+        
+        imageList = new Image[5];
+        imageList[0] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/arrow-play.png").toString())).getAbsolutePath())).getImage();
+        imageList[1] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/box-stop.png").toString())).getAbsolutePath())).getImage();
+        imageList[2] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/repeat.png").toString())).getAbsolutePath())).getImage();
+        imageList[3] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/settings.png").toString())).getAbsolutePath())).getImage();
+        imageList[4] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/speaker.png").toString())).getAbsolutePath())).getImage();
+
+        activityList = new boolean[imageList.length];
+        updateButtons();
+        
+        playAction = parent.getGUIController().getPlayPlayListAction(playListUUID);
+    	stopAction = parent.getGUIController().getStopAction(playListUUID);
+    	repeatListAction = parent.getGUIController().getRepeatListAction(playListUUID);
+        
+        panel.addMouseMotionListener(this);
+        panel.addMouseWheelListener(this);
+        panel.addMouseListener(this);
+        
+        
     }
 
     private int getRight()
@@ -151,8 +187,11 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
         }
     }
 
-    public int posToIconIndex(Point pos, int x, int y, int width, int height)
+    public int posToIconIndex(Point pos)
     {
+    	int x = 0,y = 0;
+    	int width = panel.getWidth();
+    	int height = panel.getHeight();
         for(int i = 0; i < imageList.length; i++)
         {
             Rectangle rect = getImageRect(i, x, y, width, height);
@@ -206,16 +245,16 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 	@Override
 	public void mouseClicked(MouseEvent e) {
 		PlayListPanel panel = (PlayListPanel)e.getSource();
-        int index = panel.posToIconIndex(e.getPoint());
-        if(panel.posToIconIndex(e.getPoint()) != -1)
+        int index = posToIconIndex(e.getPoint());
+        if(posToIconIndex(e.getPoint()) != -1)
             if(index == 0)
-                panel.play();
+                playAction.execute();
             else
             if(index == 1)
-                panel.stop();
+                stopAction.execute();
             else
             if(index == 2)
-                panel.toggleRepeating();
+                repeatListAction.execute(!parent.getGUIController().isRepeatList(playListUUID));
             else
             if(index == 3)
                 ((CardLayout)panel.getLayout()).next(panel);
@@ -235,7 +274,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 	@Override
 	public void mousePressed(MouseEvent e) {
 		PlayListPanel panel = (PlayListPanel)e.getSource();
-        int index = panel.posToIconIndex(e.getPoint());
+        int index = posToIconIndex(e.getPoint());
         if(index == 4)
             panel.draggingSpeaker = true;		
 	}
@@ -261,7 +300,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
         else
             movedClockwise = percentage > 0.5F;
         setShowVolume(true);
-        panel.setVolume(percentage);
+        updateVolume(percentage);
         panel.repaint();
 	}
 
@@ -269,7 +308,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 	public void mouseMoved(MouseEvent e) {
 		setShowVolume(false);
         PlayListPanel panel = (PlayListPanel)e.getSource();
-        int index = panel.posToIconIndex(e.getPoint());
+        int index = posToIconIndex(e.getPoint());
         if(index == -1)
         {
             panel.setCursor(Cursor.getDefaultCursor());
@@ -285,7 +324,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 	@Override
 	public void mouseWheelMoved(MouseWheelEvent e) {
 		PlayListPanel panel = (PlayListPanel)e.getSource();
-        if(panel.posToIconIndex(e.getPoint()) != 4)
+        if(posToIconIndex(e.getPoint()) != 4)
         {
             return;
         } else
@@ -295,7 +334,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
             newVolume = Math.max(0.0F, newVolume);
             newVolume = Math.min(1.0F, newVolume);
             setShowVolume(true);
-            panel.setVolume(newVolume);
+            updateVolume(newVolume);
             return;
         }
 	}
@@ -305,4 +344,44 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
         lastKnownVolume = volume;
         setVolume(volume);
     }
+    
+    public PlayListPanel getPanel() {
+    	return this.panel;
+    }
+
+	@Override
+	public GUIController getGUIController() {
+		return parent.getGUIController();
+	}
+
+	@Override
+	public void propagateHotkey(KeyEvent event) {
+		parent.propagateHotkey(event);
+	}
+
+	@Override
+	public void propagatePopupMenu(JPopupMenu menu, MouseEvent e) {
+		parent.propagatePopupMenu(menu, e);
+	}
+	
+	private void updateButtons() {
+		setActive(0, true);
+		setActive(1, true);
+		setActive(2, getGUIController().isRepeatList(playListUUID));
+		setActive(3, true);
+		setActive(4, true);
+		updateVolume(getGUIController().getVolume(playListUUID));
+		panel.repaint();
+	}
+
+	@Override
+	public void contentsChanged(ListDataEvent arg0) {
+		updateButtons();
+	}
+
+	@Override
+	public void intervalAdded(ListDataEvent arg0) {}
+
+	@Override
+	public void intervalRemoved(ListDataEvent arg0) {}
 }

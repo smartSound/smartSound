@@ -26,11 +26,13 @@ import java.awt.Point;
 import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.Stroke;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -38,12 +40,17 @@ import java.util.UUID;
 
 import javax.swing.AbstractAction;
 import javax.swing.JList;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
+import smartsound.common.Tuple;
 import smartsound.player.ItemData;
+import smartsound.view.Action;
 
 public class PlayList extends JList<ItemData> implements ListDataListener,
 		IGUILadder {
@@ -83,13 +90,18 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 	private int dropAction;
 	private int dropSourceIndex;
 	private PlayListPanel panel;
-	protected GUIController controller;
 	protected Point lastMouseClickPosition;
+	private Action playIndexAction;
+	private Action playUUIDAction;
+	protected IGUILadder parent;
 
-	public PlayList(GUIController guiController, PlayListDataModel model) {
+	public PlayList(IGUILadder parent, PlayListDataModel model) {
 		super(model);
+		this.parent = parent;
+		playIndexAction = parent.getGUIController().getPlayIndexAction(model.getUUID());
+		playUUIDAction = parent.getGUIController().getPlayItemAction(model.getUUID());
+		
 		lastMouseClickPosition = null;
-		controller = guiController;
 		model.addListDataListener(this);
 		getInputMap()
 				.put(KeyStroke.getKeyStroke("released DELETE"), "released");
@@ -139,9 +151,60 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 				lastMouseClickPosition = null;
 			}
 
-			private void showMenu(MouseEvent e) {
-				PlayListContextMenu menu = new PlayListContextMenu(controller,
+			private void showMenu(final MouseEvent e) {
+				PlayListContextMenu menu = new PlayListContextMenu(getGUIController(),
 						(PlayList) e.getSource());
+				JMenu hotkeyMenu = new JMenu("Hotkeys");
+				menu.add(hotkeyMenu);
+				
+				
+				final JMenuItem addHotkeyItem = new JMenuItem();
+				int index = locationToIndex(e.getPoint());
+				if (index != -1) {
+					final ItemData item = getElementAt(locationToIndex(e.getPoint()));
+					addHotkeyItem.setAction(
+					new AbstractAction("Add Hotkey (Play '"
+							+ item.toString() + "')") {
+						@Override
+						public void actionPerformed(ActionEvent arg0) {
+							Window wnd = SwingUtilities
+									.getWindowAncestor(PlayList.this);
+							HotkeyDialog dialog = new HotkeyDialog(wnd);
+							PlayList.this.parent.getGUIController().setHotkey(
+									dialog.getEvent(),
+									playUUIDAction.specialize(item.getUUID()));
+							wnd.toFront();
+						}
+
+					});
+				} else {
+					addHotkeyItem.setText("Add Hotkey");
+					addHotkeyItem.setEnabled(false);
+				}
+				hotkeyMenu.add(addHotkeyItem);
+				
+				String itemTitle;
+				String[] split;
+				UUID itemUUID;
+				List<Tuple<String,Action>> hotkeyList = PlayList.this.parent.getGUIController().getHotkeys(playUUIDAction);
+				if (!hotkeyList.isEmpty()) {
+					hotkeyMenu.addSeparator();
+				}
+				for (Tuple<String,Action> tuple : hotkeyList) {
+					split = tuple.first.split("\\|");
+					itemTitle = "Play '";
+					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 1);
+					itemTitle += getElement(itemUUID).toString();
+					itemTitle += "' (";
+					
+					itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
+					if (!split[0].equals("0")) itemTitle += "+";
+					itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
+					itemTitle += ")";
+					
+					hotkeyMenu.add(new JMenuItem(itemTitle));
+				}
+				
 				propagatePopupMenu(menu, e);
 			}
 		});
@@ -173,16 +236,8 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 		clearSelection();
 	}
 
-	public void play() {
-		getModel().play();
-	}
-
 	protected void play(int index) {
-		getModel().play(index);
-	}
-
-	public void stop() {
-		getModel().stop();
+		playIndexAction.execute(index);
 	}
 
 	public void setDropLocation(javax.swing.JList.DropLocation loc) {
@@ -195,10 +250,6 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 
 	public void setDropSourceIndex(int index) {
 		dropSourceIndex = index;
-	}
-
-	public void setVolume(float volume) {
-		getModel().setVolume(volume);
 	}
 
 	public void paintComponent(Graphics g) {
@@ -411,15 +462,6 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 	}
 
 	public void contentsChanged(ListDataEvent e) {
-		if (panel != null) {
-			panel.setActive(0, true);
-			panel.setActive(1, true);
-			panel.setActive(2, getModel().isRepeatList());
-			panel.setActive(3, true);
-			panel.setActive(4, true);
-			panel.updateVolume(getModel().getVolume());
-			panel.repaint();
-		}
 		repaint();
 	}
 
@@ -447,6 +489,10 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 	public ItemData getElementAt(int index) {
 		return getModel().getElementAt(index);
 	}
+	
+	public ItemData getElement(UUID uuid) {
+		return getElementAt(getIndexFromUuid(uuid));
+	}
 
 	public int getIndexFromUuid(UUID itemUUID) {
 		return getModel().getIndexFromUuid(itemUUID);
@@ -470,10 +516,6 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 
 	public void setPanel(PlayListPanel playListPanel) {
 		panel = playListPanel;
-	}
-
-	public void toggleRepeating() {
-		getModel().setRepeatList(!getModel().isRepeatList());
 	}
 
 	public Point getLastMouseClickPosition() {

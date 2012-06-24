@@ -32,18 +32,6 @@ public class PlayListDataModel
 	private GUIController controller;
     private UUID playListUUID;
     private List<ListDataListener> listeners;
-    private Action playAction;
-    private Action playIndexAction;
-    private Action stopAction;
-    private Action repeatListAction;
-    private Action randomizeListAction;
-    private Action randomizeVolumeFromAction;
-    private Action randomizeVolumeToAction;
-    private Action stopAfterEachSoundAction;
-    private Action fadeInAction;
-    private Action fadeOutAction;
-    private Action overlapAction;
-    private Action volumeAction;
 	
     public PlayListDataModel(GUIController controller, UUID playListUUID)
     {
@@ -51,28 +39,6 @@ public class PlayListDataModel
         this.playListUUID = playListUUID;
         this.controller = controller;
         controller.addObserver(this, playListUUID);
-        playAction = controller.getPlayAction(playListUUID);
-        playIndexAction = controller.getPlayIndexAction(playListUUID);
-        stopAction = controller.getStopAction(playListUUID);
-        repeatListAction = controller.getRepeatListAction(playListUUID);
-        randomizeListAction = controller.getRandomizeListAction(playListUUID);
-        randomizeVolumeFromAction = controller.getRandomizeVolumeFromAction(playListUUID);
-        randomizeVolumeToAction = controller.getRandomizeVolumeToAction(playListUUID);
-        stopAfterEachSoundAction = controller.getStopAfterEachSoundAction(playListUUID);
-        fadeInAction = controller.getFadeInAction(playListUUID);
-        fadeOutAction = controller.getFadeOutAction(playListUUID);
-        overlapAction = controller.getOverlapAction(playListUUID);
-        volumeAction = controller.getVolumeAction(playListUUID);
-        controller.setHotkey("1", controller.getPlayAction(playListUUID, 0));
-        controller.setHotkey("2", controller.getPlayAction(playListUUID, 1));
-        controller.setHotkey("3", controller.getPlayAction(playListUUID, 2));
-        controller.setHotkey("4", controller.getPlayAction(playListUUID, 3));
-        controller.setHotkey("5", controller.getPlayAction(playListUUID, 4));
-        controller.setHotkey("6", controller.getPlayAction(playListUUID, 5));
-        controller.setHotkey("7", controller.getPlayAction(playListUUID, 6));
-        controller.setHotkey("8", controller.getPlayAction(playListUUID, 7));
-        controller.setHotkey("9", controller.getPlayAction(playListUUID, 8));
-        controller.setHotkey("0", controller.getPlayAction(playListUUID, 9));
     }
 
     public void addListDataListener(ListDataListener listener)
@@ -131,16 +97,6 @@ public class PlayListDataModel
 
     }
 
-    public void play(int index)
-    {
-        playIndexAction.execute(Integer.valueOf(index));
-    }
-
-    public void play()
-    {
-        playAction.execute(null);
-    }
-
     private void notifyListeners()
     {
         ListDataListener listener;
@@ -160,11 +116,6 @@ public class PlayListDataModel
         return controller.getItemIndex(playListUUID, itemUUID);
     }
 
-    public void stop()
-    {
-        stopAction.execute(null);
-    }
-
     public UUID getUUID()
     {
         return playListUUID;
@@ -180,59 +131,14 @@ public class PlayListDataModel
         return controller.isRepeatList(playListUUID);
     }
 
-    public void setRepeatList(boolean repeat)
-    {
-        repeatListAction.execute(Boolean.valueOf(repeat));
-    }
-
     public boolean isRandomizeList()
     {
         return controller.isRandomizeList(playListUUID);
     }
 
-    public void setRandomizeList(boolean randomize)
-    {
-        randomizeListAction.execute(Boolean.valueOf(randomize));
-    }
-
     public void setChainWith(UUID source, UUID target)
     {
         controller.getItemChainWithAction(playListUUID, source).execute(target);
-    }
-
-    public void setRandomizeVolumeFrom(float value)
-    {
-        randomizeVolumeFromAction.execute(Float.valueOf(value));
-    }
-
-    public void setRandomizeVolumeTo(float value)
-    {
-        randomizeVolumeToAction.execute(Float.valueOf(value));
-    }
-
-    public void setStopAfterEachSound(boolean selected)
-    {
-        stopAfterEachSoundAction.execute(Boolean.valueOf(selected));
-    }
-
-    public void setFadeIn(int value)
-    {
-        fadeInAction.execute(Integer.valueOf(value));
-    }
-
-    public void setFadeOut(int value)
-    {
-        fadeOutAction.execute(Integer.valueOf(value));
-    }
-
-    public void setOverlap(int value)
-    {
-        overlapAction.execute(Integer.valueOf(value));
-    }
-
-    public boolean isStopAfterEachSound()
-    {
-        return controller.isStopAfterEachSound(playListUUID);
     }
 
     public float getRandomizeVolumeFrom()
@@ -258,11 +164,6 @@ public class PlayListDataModel
     public int getOverlap()
     {
         return controller.getOverlap(playListUUID);
-    }
-
-    public void setVolume(float volume)
-    {
-        volumeAction.execute(Float.valueOf(volume));
     }
 
     public float getVolume()

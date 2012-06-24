@@ -58,9 +58,9 @@ public class PropertyMap {
 	private PropertyMap() {}
 	
 	private void load(INIFile ini, String uuid) {
-		System.err.println(uuid);
 		mapUUID = UUID.fromString(uuid);
 		for (String prop : ini.getPropertyNames(uuid)) {
+			System.out.println(prop + " : " + ini.getStringProperty(uuid,prop));
 			propertymap.put(prop, ini.getStringProperty(uuid, prop));
 		}
 		
@@ -94,6 +94,7 @@ public class PropertyMap {
 	 * @return The value.
 	 */
 	public String get(String key) {
+		System.out.println(key + " : " + propertymap.get(key));
 		return propertymap.get(key);
 	}
 	
@@ -142,5 +143,12 @@ public class PropertyMap {
 		saveToIni(ini);
 		ini.setStringProperty("GLOBALS", "ROOT", mapUUID.toString(), "");
 		ini.save();
+	}
+	
+	/**
+	 * @return A list of all keys in this map.
+	 */
+	public List<String> getKeys() {
+		return new LinkedList<String>(propertymap.keySet());
 	}
 }

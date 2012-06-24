@@ -18,22 +18,38 @@
 package smartsound.view;
 
 import java.lang.reflect.Method;
-import java.util.*;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
 
+import smartsound.common.PropertyMap;
+import smartsound.common.Tuple;
 import smartsound.controller.AbstractController;
 import smartsound.player.IPlayListObserver;
 import smartsound.player.ItemData;
+import smartsound.player.LoadingException;
 import smartsound.view.gui.GUIController;
 
 
 
 public class ViewController extends AbstractViewController
 {
+	
+    private AbstractController controller;
+    private List<GUIController> guis;
+    private Map<String, Set<Action>> hotkeyMap;
 
     public ViewController(AbstractController controller)
     {
         guis = new LinkedList<GUIController>();
-        hotkeyMap = new HashMap<String, Action>();
+        hotkeyMap = new HashMap<String, Set<Action>>();
         this.controller = controller;
     }
 
@@ -80,7 +96,6 @@ public class ViewController extends AbstractViewController
     public UUID addPlayList()
     {
         UUID uuid = controller.addPlayList();
-        hotkeyMap.put(" A", getPlayAction(uuid));
         return uuid;
     }
 
@@ -594,6 +609,26 @@ public class ViewController extends AbstractViewController
         };
         return new Action(method, this, params);
     }
+    
+    @Override
+	public Action getPlayItemAction(UUID playListUUID) {
+    	Method method;
+        try
+        {
+            method = ViewController.class.getMethod("play", new Class[] {
+                UUID.class, UUID.class
+            });
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+            return null;
+        }
+        Object params[] = {
+            playListUUID
+        };
+        return new Action(method, this, params);
+	}
 
     public void play(UUID playListUUID, UUID itemUUID)
     {
@@ -607,13 +642,16 @@ public class ViewController extends AbstractViewController
 
     public void setHotkey(String hotkey, Action action)
     {
-        hotkeyMap.put(hotkey, action);
+    	if (!hotkeyMap.containsKey(hotkey)) {
+    		hotkeyMap.put(hotkey, new HashSet<Action>());
+    	}
+        hotkeyMap.get(hotkey).add(action);
     }
 
     public void executeHotkey(String hotkey)
     {
         if(hotkeyMap.containsKey(hotkey))
-            ((Action)hotkeyMap.get(hotkey)).execute(null);
+            ((Action)hotkeyMap.get(hotkey)).execute();
     }
 
     public void removePlayList(UUID playListUUID)
@@ -632,7 +670,156 @@ public class ViewController extends AbstractViewController
 
     }
 
-    private AbstractController controller;
-    private List<GUIController> guis;
-    private Map<String, Action> hotkeyMap;
+	@Override
+	public List<Tuple<String, Action>> getHotkeys(Action parent) {
+		List<Tuple<String,Action>> result = new LinkedList<Tuple<String,Action>>();
+		for (Entry<String,Set<Action>> entry : hotkeyMap.entrySet()) {
+			for (Action action : entry.getValue()) {				
+				if (parent.isParentOf(action))
+					result.add(new Tuple<String,Action>(entry.getKey(), action));
+			}
+			
+		}
+		return result;
+	}
+
+	@Override
+	public void removeAllHotkeys() {
+		hotkeyMap.clear();
+	}
+
+	@Override
+	public void removeHotkey(String hotkey, Action action) {
+		if (!hotkeyMap.containsKey(hotkey)) {
+			return;
+		}
+		
+		Set<Action> actionSet = hotkeyMap.get(hotkey);
+		actionSet.remove(action);
+		if (actionSet.isEmpty()) {
+			hotkeyMap.remove(hotkey);
+		}
+	}
+
+	@Override
+	public PropertyMap getPropertyMap() {
+		PropertyMap result = new PropertyMap(UUID.randomUUID());
+		result.put("type", ViewController.class.getCanonicalName());
+		
+		PropertyMap actionPropertyMap;
+		String actionUUIDs;
+		for (Entry<String, Set<Action>> entry : hotkeyMap.entrySet()) {
+			actionUUIDs = "";
+			for (Action action: entry.getValue()) {
+				actionPropertyMap = actionToPropertyMap(action);
+				result.addPropertyMap(actionPropertyMap);
+				actionUUIDs += actionPropertyMap.getMapUUID();
+				actionUUIDs += " ";
+			}
+			actionUUIDs = actionUUIDs.trim();
+			result.put("hotkey:" + entry.getKey(), actionUUIDs);
+		}
+		return result;
+	}
+	
+	private PropertyMap actionToPropertyMap(Action action) {
+		PropertyMap result = new PropertyMap(UUID.randomUUID());
+		result.put("type", Action.class.getCanonicalName());
+		Method method = action.getMethod();
+		result.put("method", method.getName());
+		
+		String methodParams = "";
+		Type[] types = method.getGenericParameterTypes();
+		for (int i = 0; i < types.length; i++) {
+			methodParams += types[i].toString().replace("class ", "");
+			if (i != types.length - 1) {
+				methodParams += " ";
+			}
+		}
+		result.put("parametertypes", methodParams);
+		
+		Object[] defaultParams = action.getDefaultParameters();
+		String defaultParamsString = "";
+		for (int i = 0; i < defaultParams.length; i++) {
+			defaultParamsString += defaultParams[i];
+			if (i != defaultParams.length - 1) {
+				defaultParamsString += " ";
+			}
+		}
+		result.put("defaultparameters", defaultParamsString);
+		return result;
+	}
+	
+	private Action propertyMapToAction(PropertyMap pMap) {
+		String[] classNames = pMap.get("parametertypes").split(" ");
+		Class<?>[] classes = new Class[classNames.length];
+		
+		Method method;
+		try {
+			for (int i = 0; i < classNames.length; i++) {
+				classes[i] = ClassLoader.getSystemClassLoader().loadClass(
+						classNames[i]);
+			}
+
+			method = ViewController.class
+					.getMethod(pMap.get("method"), classes);
+		} catch (ClassNotFoundException | NoSuchMethodException
+				| SecurityException e) {
+			e.printStackTrace();
+			return null;
+		}
+		
+		String[] defaultParamsString = pMap.get("defaultparameters").split(" ");
+		Object[] defaultParams = new Object[defaultParamsString.length];
+		for (int i = 0; i < defaultParams.length; i++) {
+			defaultParams[i] = stringToParam(classes[i], defaultParamsString[i]);
+		}
+		
+		return new Action(method, this, defaultParams);
+	}
+	
+	private Object stringToParam(Class<?> paramType, String stringRepresentation) {
+		if (paramType == boolean.class || paramType == Boolean.class) {
+			return Boolean.valueOf(stringRepresentation);
+		} else if (paramType == UUID.class) {
+			return UUID.fromString(stringRepresentation);
+		} else if (paramType == Float.class || paramType == float.class) {
+			return Float.valueOf(stringRepresentation);
+		} else if (paramType == Double.class || paramType == double.class) {
+			return Double.valueOf(stringRepresentation);
+		} else if (paramType == Integer.class || paramType == int.class) {
+			return Integer.valueOf(stringRepresentation);
+		} else if (paramType == String.class) {
+			return stringRepresentation;
+		} else {
+			System.out.println(paramType);
+		}
+		
+		return null;
+	}
+	
+	public void loadFromPropertyMap(PropertyMap pMap) throws LoadingException {
+		if (!pMap.get("type").equals(getClass().getCanonicalName())) {
+			throw new LoadingException();
+		}
+		
+		removeAllHotkeys();
+		Map<UUID, Action> actionMap = new HashMap<UUID,Action>();
+		for (PropertyMap map : pMap.getNestedMaps()) {
+			if (map.get("type").equals(Action.class.getCanonicalName())) {
+				actionMap.put(map.getMapUUID(), propertyMapToAction(map));
+			}
+		}
+		
+		String hotkey;
+		for (String key : pMap.getKeys()) {
+			if (key.startsWith("hotkey:")) {
+				hotkey = key.replaceFirst("hotkey:", "");
+				if (!hotkeyMap.containsKey(hotkey)) {
+					hotkeyMap.put(hotkey, new HashSet<Action>());
+				}
+				hotkeyMap.get(hotkey).add(actionMap.get(UUID.fromString(pMap.get(key))));
+			}
+		}
+	}
 }

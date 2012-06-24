@@ -18,22 +18,14 @@
 package smartsound.view.gui;
 
 import java.awt.CardLayout;
-import java.awt.Cursor;
-import java.awt.Image;
 import java.awt.Point;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
-import java.awt.event.MouseWheelEvent;
-import java.io.File;
 
-import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
-
-import smartsound.controller.Launcher;
+import javax.swing.border.Border;
 
 
 public class PlayListPanel extends JPanel implements IGUILadder
@@ -51,46 +43,24 @@ public class PlayListPanel extends JPanel implements IGUILadder
     public static final int SPEAKER = 4;
     protected boolean movedClockwise;
     protected boolean draggingSpeaker;
-    private float lastKnownVolume;
     private IGUILadder parent;
 
-    public PlayListPanel(GUIController controller, PlayListDataModel playListDataModel)
+    public PlayListPanel(IGUILadder parent, Border border, PlayListDataModel playListDataModel)
     {
+    	setBorder(border);
+    	this.parent = parent;
         movedClockwise = false;
         draggingSpeaker = false;
-        playList = new PlayList(controller, playListDataModel);
+        playList = new PlayList(this, playListDataModel);
         playList.setPanel(this);
         CardLayout layout = new CardLayout();
         setLayout(layout);
-        Image imageList[] = new Image[5];
-        imageList[0] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/arrow-play.png").toString())).getAbsolutePath())).getImage();
-        imageList[1] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/box-stop.png").toString())).getAbsolutePath())).getImage();
-        imageList[2] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/repeat.png").toString())).getAbsolutePath())).getImage();
-        imageList[3] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/settings.png").toString())).getAbsolutePath())).getImage();
-        imageList[4] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/speaker.png").toString())).getAbsolutePath())).getImage();
-        PlayListPanelBorder border = new PlayListPanelBorder(this, "Playlist", imageList);
-        setBorder(border);
+        
         add(new JScrollPane(playList), "PLAYLIST");
-        JPanel settingsPanel = new SettingsPanel(playListDataModel);
+        JPanel settingsPanel = new SettingsPanel(this, playListDataModel);
         add(settingsPanel, "SETTINGS");
-        MouseAdapter motionAdapter = new MouseAdapter() {
-
-            public void mouseMoved(MouseEvent e)
-            {
-                
-            }
-
-            public void mouseExited(MouseEvent e)
-            {
-                
-            }
-        }
-;
-        addMouseMotionListener(border);
-        addMouseListener(border);
-        addMouseMotionListener(border);
-        addMouseWheelListener(border);
-        playList.contentsChanged(null);
+        
+        this.parent = parent;
     }
 
     protected int posToAngle(Point point)
@@ -99,52 +69,11 @@ public class PlayListPanel extends JPanel implements IGUILadder
         return border.posToAngle(point, 0, 0, getWidth(), getHeight());
     }
 
-    protected void stop()
-    {
-        playList.stop();
-    }
-
-    protected void play()
-    {
-        playList.play();
-    }
-
-    protected void toggleRepeating()
-    {
-        playList.toggleRepeating();
-    }
-
-    protected int posToIconIndex(Point pos)
-    {
-        PlayListPanelBorder border = (PlayListPanelBorder)getBorder();
-        return border.posToIconIndex(pos, 0, 0, getWidth(), getHeight());
-    }
-
-    public void setActive(int index, boolean active)
-    {
-        PlayListPanelBorder border = (PlayListPanelBorder)getBorder();
-        border.setActive(index, active);
-    }
-
     public void setShowVolume(boolean showVolume)
     {
         PlayListPanelBorder border = (PlayListPanelBorder)getBorder();
         border.setShowVolume(showVolume);
         repaint();
-    }
-
-    public void setVolume(float volume)
-    {
-        PlayListPanelBorder border = (PlayListPanelBorder)getBorder();
-        playList.setVolume(volume);
-        border.setVolume(volume);
-        repaint();
-    }
-
-    public void updateVolume(float volume)
-    {
-        PlayListPanelBorder border = (PlayListPanelBorder)getBorder();
-        border.updateVolume(volume);
     }
 
 	@Override

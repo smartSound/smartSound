@@ -67,6 +67,7 @@ public class PlayList {
 		stopAfterEachSound = Boolean.parseBoolean(map.get("stop_after_each_sound"));
 		randomizeList = Boolean.parseBoolean(map.get("randomize"));
 		
+		System.out.println(map.get("volume_from"));
 		playerControllerSettings.setFadeInLength(Integer.parseInt(map.get("fade_in_length")));
 		playerControllerSettings.setFadeOutLength(Integer.parseInt(map.get("fade_out_length")));
 		playerControllerSettings.setOverlapTime(Integer.parseInt(map.get("overlap_length")));
@@ -626,6 +627,7 @@ public class PlayList {
 	 * @param from The minimum volume in the range from 0 to 1.0.
 	 */
 	public void setRandomizeVolumeFrom(float from) {
+		System.out.println(from);
 		playerControllerSettings.setRandomizeVolumeFrom(from);
 		playListChanged();
 	}

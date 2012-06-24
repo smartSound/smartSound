@@ -19,8 +19,12 @@ package smartsound.view;
 
 import java.util.List;
 import java.util.UUID;
+
+import smartsound.common.PropertyMap;
+import smartsound.common.Tuple;
 import smartsound.player.IPlayListObserver;
 import smartsound.player.ItemData;
+import smartsound.player.LoadingException;
 import smartsound.view.gui.GUIController;
 
 public abstract class AbstractViewController
@@ -97,6 +101,8 @@ public abstract class AbstractViewController
     public abstract Action getFadeInAction(UUID uuid);
 
     public abstract Action getFadeOutAction(UUID uuid);
+    
+    public abstract List<Tuple<String,Action>> getHotkeys(Action parent);
 
     public abstract Action getOverlapAction(UUID uuid);
 
@@ -123,4 +129,14 @@ public abstract class AbstractViewController
     public abstract void removePlayList(UUID uuid);
 
     public abstract void newPlayList(UUID uuid);
+
+	public abstract Action getPlayItemAction(UUID playListUUID);
+	
+	public abstract void removeAllHotkeys();
+	
+	public abstract void removeHotkey(String hotkey, Action action);
+	
+	public abstract PropertyMap getPropertyMap();
+
+	public abstract void loadFromPropertyMap(PropertyMap pMap) throws LoadingException;
 }
