@@ -36,11 +36,6 @@ public class PlayListPanel extends JPanel implements IGUILadder
     private static final String SETTINGSCARD = "SETTINGS";
     private static final long serialVersionUID = 0xee7b24ca5ba3db42L;
     private static final int NO_OF_IMAGES = 5;
-    public static final int PLAY = 0;
-    public static final int STOP = 1;
-    public static final int REPEAT = 2;
-    public static final int SETTINGS = 3;
-    public static final int SPEAKER = 4;
     protected boolean movedClockwise;
     protected boolean draggingSpeaker;
     private IGUILadder parent;

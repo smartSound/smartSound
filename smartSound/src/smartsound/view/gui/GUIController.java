@@ -19,15 +19,21 @@ package smartsound.view.gui;
 
 import java.awt.Component;
 import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.swing.AbstractAction;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.UIManager;
@@ -35,6 +41,7 @@ import javax.swing.UIManager;
 import smartsound.common.Tuple;
 import smartsound.player.IPlayListObserver;
 import smartsound.player.ItemData;
+import smartsound.settings.Global;
 import smartsound.view.AbstractViewController;
 import smartsound.view.Action;
 
@@ -53,6 +60,22 @@ public class GUIController implements IGUILadder {
 		frame.setSize(300, 400);
 		frame.setLocation(397, 47);
 		frame.setVisible(true);
+		
+		frame.addKeyListener(new KeyListener() {
+
+			@Override
+			public void keyPressed(KeyEvent arg0) {}
+
+			@Override
+			public void keyReleased(KeyEvent arg0) {
+				propagateHotkey(arg0);
+			}
+
+			@Override
+			public void keyTyped(KeyEvent arg0) {			}
+			
+		});
+		
 		mainPanel = new JPanel(new GridLayout());
 		frame.getContentPane().add(mainPanel);
 		try {
@@ -250,10 +273,73 @@ public class GUIController implements IGUILadder {
 
 	@Override
 	public void propagatePopupMenu(JPopupMenu menu, MouseEvent e) {
+		if (menu.getSubElements().length != 0) {
+			menu.addSeparator();
+		}
+		menu.add(new SaveAction());
+		menu.add(new LoadAction());
+		menu.addSeparator();
+		menu.add(new ResetPluginAction());
 		menu.show(e.getComponent(), e.getX(), e.getY());
 	}
 	
 	public List<Tuple<String,Action>> getHotkeys(Action parent) {
 		return viewController.getHotkeys(parent);
 	}
+	
+	protected class SaveAction extends AbstractAction
+    {
+
+        public void actionPerformed(ActionEvent e)
+        {
+            JFileChooser chooser = new JFileChooser();
+            int result = chooser.showSaveDialog(null);
+            if(result == 0)
+                getSaveAction().execute(chooser.getSelectedFile().getAbsolutePath());
+        }
+        
+        public SaveAction()
+        {
+            super("Save");
+        }
+    }
+	
+	protected class LoadAction extends AbstractAction
+    {
+
+        public void actionPerformed(ActionEvent e)
+        {
+            JFileChooser chooser = new JFileChooser();
+            int result = chooser.showOpenDialog(null);
+            if(result == 0)
+                getLoadAction().execute(chooser.getSelectedFile().getAbsolutePath());
+        }
+        
+        public LoadAction()
+        {
+            super("Load");
+        }
+    }
+	
+	protected class ResetPluginAction extends AbstractAction
+    {
+
+        public void actionPerformed(ActionEvent arg0)
+        {
+            try
+            {
+                Global.getInstance().removeProperty("plugin");
+                JOptionPane.showMessageDialog(null, "Plugin successfully resetted. The next time you start smartSound you can choose a different plugin.");
+            }
+            catch(IOException e)
+            {
+                JOptionPane.showMessageDialog(null, "Error while resetting the plugin");
+            }
+        }
+
+        public ResetPluginAction()
+        {
+            super("Reset plugin");
+        }
+    }
 }

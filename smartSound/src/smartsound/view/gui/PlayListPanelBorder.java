@@ -30,6 +30,8 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Window;
+import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -40,8 +42,12 @@ import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.util.UUID;
 
+import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
+import javax.swing.JMenu;
+import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
@@ -60,6 +66,12 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 	private Action playAction;
     private Action stopAction;
     private Action repeatListAction;
+    
+    private static final int PLAY = 0;
+    private static final int STOP = 1;
+    private static final int REPEAT = 2;
+    private static final int SETTINGS = 3;
+    private static final int SPEAKER = 4;
 	
     public PlayListPanelBorder(IGUILadder parent, PlayListDataModel model, String title)
     {
@@ -71,11 +83,11 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
         model.addListDataListener(this);
         
         imageList = new Image[5];
-        imageList[0] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/arrow-play.png").toString())).getAbsolutePath())).getImage();
-        imageList[1] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/box-stop.png").toString())).getAbsolutePath())).getImage();
-        imageList[2] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/repeat.png").toString())).getAbsolutePath())).getImage();
-        imageList[3] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/settings.png").toString())).getAbsolutePath())).getImage();
-        imageList[4] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/speaker.png").toString())).getAbsolutePath())).getImage();
+        imageList[PLAY] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/arrow-play.png").toString())).getAbsolutePath())).getImage();
+        imageList[STOP] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/box-stop.png").toString())).getAbsolutePath())).getImage();
+        imageList[REPEAT] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/repeat.png").toString())).getAbsolutePath())).getImage();
+        imageList[SETTINGS] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/settings.png").toString())).getAbsolutePath())).getImage();
+        imageList[SPEAKER] = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/speaker.png").toString())).getAbsolutePath())).getImage();
 
         activityList = new boolean[imageList.length];
         updateButtons();
@@ -241,23 +253,11 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
     private String title;
     private boolean showVolume;
     private double volume;
+    private boolean dragged = false;
 
 	@Override
 	public void mouseClicked(MouseEvent e) {
-		PlayListPanel panel = (PlayListPanel)e.getSource();
-        int index = posToIconIndex(e.getPoint());
-        if(posToIconIndex(e.getPoint()) != -1)
-            if(index == 0)
-                playAction.execute();
-            else
-            if(index == 1)
-                stopAction.execute();
-            else
-            if(index == 2)
-                repeatListAction.execute(!parent.getGUIController().isRepeatList(playListUUID));
-            else
-            if(index == 3)
-                ((CardLayout)panel.getLayout()).next(panel);
+		
 	}
 
 	@Override
@@ -275,19 +275,136 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 	public void mousePressed(MouseEvent e) {
 		PlayListPanel panel = (PlayListPanel)e.getSource();
         int index = posToIconIndex(e.getPoint());
-        if(index == 4)
-            panel.draggingSpeaker = true;		
+        if(index == 4 && e.getButton() == MouseEvent.BUTTON1)
+            panel.draggingSpeaker = true;
+        dragged = false;
+        if (e.isPopupTrigger()) {
+        	showPopup(e);
+        }
 	}
 
 	@Override
 	public void mouseReleased(MouseEvent e) {
         PlayListPanel panel = (PlayListPanel)e.getSource();
         panel.draggingSpeaker = false;
+        
+        if (!dragged) {
+        	int index = posToIconIndex(e.getPoint());
+            if(posToIconIndex(e.getPoint()) != -1 && e.getButton() == MouseEvent.BUTTON1) {
+                if(index == PLAY)
+                    playAction.execute();
+                else
+                if(index == STOP)
+                    stopAction.execute();
+                else
+                if(index == REPEAT)
+                    repeatListAction.execute(!parent.getGUIController().isRepeatList(playListUUID));
+                else
+                if(index == SETTINGS)
+                    ((CardLayout)panel.getLayout()).next(panel);
+            } else if (e.isPopupTrigger()) {
+            	showPopup(e);
+            }
+        }
+	}
+	
+	private void showPopup(MouseEvent e) {
+		JPopupMenu popup = new JPopupMenu();
+		JMenu hotkeyMenu = new JMenu("Hotkeys");
+		popup.add(hotkeyMenu);
+		int index = posToIconIndex(e.getPoint());
+		String description = null;
+		if (index != -1)
+			switch(index) {
+			case PLAY:
+				description = "Add Hotkey (Play)";
+				hotkeyMenu.add(new AbstractAction(description) {
+					@Override
+					public void actionPerformed(ActionEvent arg0) {
+						Window wnd = SwingUtilities
+								.getWindowAncestor(panel);
+						HotkeyDialog dialog = new HotkeyDialog(wnd);
+						parent.getGUIController().setHotkey(
+								dialog.getEvent(),
+								getGUIController().getPlayPlayListAction(playListUUID));
+						wnd.toFront();
+					}
+		
+				});
+				break;
+			case STOP:
+				description = "Add Hotkey (Stop)";
+				hotkeyMenu.add(new AbstractAction(description) {
+					@Override
+					public void actionPerformed(ActionEvent arg0) {
+						Window wnd = SwingUtilities
+								.getWindowAncestor(panel);
+						HotkeyDialog dialog = new HotkeyDialog(wnd);
+						parent.getGUIController().setHotkey(
+								dialog.getEvent(),
+								getGUIController().getStopAction(playListUUID));
+						wnd.toFront();
+					}
+		
+				});
+				break;
+			case REPEAT:
+				description = "Add Hotkey (Set repeat)";
+				hotkeyMenu.add(new AbstractAction(description) {
+					@Override
+					public void actionPerformed(ActionEvent arg0) {
+						Window wnd = SwingUtilities
+								.getWindowAncestor(panel);
+						HotkeyDialog dialog = new HotkeyDialog(wnd);
+						Object[] options = {true, false};
+						int result = JOptionPane.showOptionDialog(panel, "Setting 'repeat list' to...", "Choose a value",
+								JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, true);
+						parent.getGUIController().setHotkey(
+								dialog.getEvent(),
+								getGUIController().getRepeatListAction(playListUUID).specialize(result == 0 ? true : false));
+						wnd.toFront();
+					}
+		
+				});
+				
+				
+				break;
+			case SPEAKER:
+				description = "Add Hotkey (Set volume)";
+				hotkeyMenu.add(new AbstractAction(description) {
+					@Override
+					public void actionPerformed(ActionEvent arg0) {
+						Window wnd = SwingUtilities
+								.getWindowAncestor(panel);
+						HotkeyDialog dialog = new HotkeyDialog(wnd);
+						Object[] options = {true, false};
+						String stringResult = JOptionPane.showInputDialog("Insert a number between 0 and 100", 100);
+						float volume;
+						try {
+							volume = Float.valueOf(stringResult) / 100.0f;
+							volume = Math.max(volume, 0);
+							volume = Math.min(volume, 100);
+						} catch (NumberFormatException e) {
+							return;
+						}
+						parent.getGUIController().setHotkey(
+								dialog.getEvent(),
+								getGUIController().getVolumeAction(playListUUID).specialize(volume));
+						wnd.toFront();
+					}
+		
+				});
+			}
+		if (hotkeyMenu.getItemCount() == 0) {
+			hotkeyMenu.setEnabled(false);
+		}
+		propagatePopupMenu(popup, e);
 	}
 
 	@Override
 	public void mouseDragged(MouseEvent e) {
         PlayListPanel panel = (PlayListPanel)e.getSource();
+        dragged = true;
         if(!panel.draggingSpeaker)
             return;
         int degrees = panel.posToAngle(e.getPoint());

@@ -44,74 +44,12 @@ public class PlayListContextMenu extends JPopupMenu
             super("Delete selected");
         }
     }
-
-    protected class LoadAction extends AbstractAction
-    {
-
-        public void actionPerformed(ActionEvent e)
-        {
-            JFileChooser chooser = new JFileChooser();
-            int result = chooser.showOpenDialog(null);
-            if(result == 0)
-                controller.getLoadAction().execute(chooser.getSelectedFile().getAbsolutePath());
-        }
-        
-        public LoadAction()
-        {
-            super("Load");
-        }
-    }
-
-    protected class ResetPluginAction extends AbstractAction
-    {
-
-        public void actionPerformed(ActionEvent arg0)
-        {
-            try
-            {
-                Global.getInstance().removeProperty("plugin");
-                JOptionPane.showMessageDialog(null, "Plugin successfully resetted. The next time you start smartSound you can choose a different plugin.");
-            }
-            catch(IOException e)
-            {
-                JOptionPane.showMessageDialog(null, "Error while resetting the plugin");
-            }
-        }
-
-        public ResetPluginAction()
-        {
-            super("Reset plugin");
-        }
-    }
-
-    protected class SaveAction extends AbstractAction
-    {
-
-        public void actionPerformed(ActionEvent e)
-        {
-            JFileChooser chooser = new JFileChooser();
-            int result = chooser.showSaveDialog(null);
-            if(result == 0)
-                controller.getSaveAction().execute(chooser.getSelectedFile().getAbsolutePath());
-        }
-        
-        public SaveAction()
-        {
-            super("Save");
-        }
-    }
-
-
+    
     public PlayListContextMenu(GUIController controller, PlayList list)
     {
         this.list = list;
         this.controller = controller;
         add(new JMenuItem(new DeleteAction()));
-        addSeparator();
-        add(new JMenuItem(new SaveAction()));
-        add(new JMenuItem(new LoadAction()));
-        addSeparator();
-        add(new JMenuItem(new ResetPluginAction()));
     }
 
 }

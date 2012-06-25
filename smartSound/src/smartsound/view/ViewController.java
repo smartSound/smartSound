@@ -651,7 +651,9 @@ public class ViewController extends AbstractViewController
     public void executeHotkey(String hotkey)
     {
         if(hotkeyMap.containsKey(hotkey))
-            ((Action)hotkeyMap.get(hotkey)).execute();
+        	for (Action action : hotkeyMap.get(hotkey)) {
+        		action.execute();
+        	}
     }
 
     public void removePlayList(UUID playListUUID)

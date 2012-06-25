@@ -108,6 +108,7 @@ public class Action
         }
     	
     	Action result = new Action(method, instance, params);
+    	System.out.println(result.toString());
     	
     	return result;
     }
