@@ -59,7 +59,7 @@ public class PainterLabel extends DefaultListCellRenderer
         Composite comp = g2d.getComposite();
         if(!repeating)
             g2d.setComposite(AlphaComposite.getInstance(10, 0.5F));
-        Image image = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/arrow-repeat.png").toString())).getAbsolutePath())).getImage();
+        Image image = (new ImageIcon((new File((new StringBuilder(String.valueOf(Launcher.getImageDir()))).append("/repeat.png").toString())).getAbsolutePath())).getImage();
         g2d.drawImage(image, repeatRect.x, repeatRect.y, repeatRect.width, repeatRect.height, null);
         g2d.setComposite(comp);
         if(!chained)

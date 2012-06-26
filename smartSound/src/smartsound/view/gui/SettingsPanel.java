@@ -21,16 +21,24 @@ import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.UUID;
 
+import javax.swing.AbstractAction;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JSlider;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ListDataEvent;
@@ -39,7 +47,7 @@ import javax.swing.event.ListDataListener;
 import smartsound.view.Action;
 
 
-public class SettingsPanel extends javax.swing.JPanel implements ListDataListener, IGUILadder {
+public class SettingsPanel extends javax.swing.JPanel implements ListDataListener, IGUILadder, MouseListener {
 
 	/**
 	 * 
@@ -85,6 +93,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		
 		this.parent = parent;
 		playListUUID = playListDataModel.getUUID();
+		playListDataModel.addListDataListener(this);
+		addMouseListener(this);
+		
 		
 		randomizeListAction = parent.getGUIController().getRandomizeListAction(playListUUID);
         randomizeVolumeFromAction = parent.getGUIController().getRandomizeVolumeFromAction(playListUUID);
@@ -301,6 +312,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 	}
 	
 	private void refreshValues() {
+		System.out.println("refreshing!");
 		editing = true;
 		randomizeCheckBox.setSelected(parent.getGUIController().isRandomizeList(playListUUID));
 		stopAfterEachSoundCheckBox.setSelected(parent.getGUIController().isStopAfterEachSound(playListUUID));
@@ -342,5 +354,110 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 	@Override
 	public void propagatePopupMenu(JPopupMenu menu, MouseEvent e) {
 		parent.propagatePopupMenu(menu,e);
+	}
+
+	@Override
+	public void mouseClicked(MouseEvent arg0) {}
+
+	@Override
+	public void mouseEntered(MouseEvent arg0) {}
+
+	@Override
+	public void mouseExited(MouseEvent arg0) {}
+
+	@Override
+	public void mousePressed(MouseEvent arg0) {
+		if (arg0.isPopupTrigger())
+			showPopup(arg0);
+	}
+
+	@Override
+	public void mouseReleased(MouseEvent arg0) {
+		if (arg0.isPopupTrigger())
+			showPopup(arg0);
+	}
+	
+	private void showPopup(MouseEvent e) {
+		JPopupMenu popup = new JPopupMenu();
+		JMenu hotkeyMenu = new JMenu("Hotkeys");
+		popup.add(hotkeyMenu);
+		
+		hotkeyMenu.add(new AbstractAction("Add hotkey (set randomizing)") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				Object obj = UserInput.getInput(SettingsPanel.this, "Turn on", "Turn off");
+				parent.getGUIController().setHotkey(e, randomizeListAction.specialize("Turn on".equals(obj)));
+			}
+			
+		});
+		
+		hotkeyMenu.add(new AbstractAction("Add hotkey (set randomize volume from)") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 100.0d, 1.0d, (int) (getGUIController().getRandomizeVolumeFrom(playListUUID) * 100.0));
+				if (value != null)
+					parent.getGUIController().setHotkey(e, randomizeVolumeFromAction.specialize((float) (value / 100.0d)));
+			}
+			
+		});
+		
+		hotkeyMenu.add(new AbstractAction("Add hotkey (set randomize volume to)") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 100.0d, 1.0d, (int) (getGUIController().getRandomizeVolumeTo(playListUUID) * 100.0));
+				if (value != null)
+					parent.getGUIController().setHotkey(e, randomizeVolumeToAction.specialize((float) (value / 100.0d)));
+			}
+			
+		});
+		
+		hotkeyMenu.add(new AbstractAction("Add hotkey (set stop after each sound)") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				Object obj = UserInput.getInput(SettingsPanel.this, "Turn on", "Turn off");
+				parent.getGUIController().setHotkey(e, stopAfterEachSoundAction.specialize("Turn on".equals(obj)));
+			}
+			
+		});
+		
+		hotkeyMenu.add(new AbstractAction("Add hotkey (set fade in time)") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) (getGUIController().getFadeIn(playListUUID) / 1000.0));
+				if (value != null)
+					parent.getGUIController().setHotkey(e, fadeInAction.specialize((int) (value * 1000)));
+			}
+			
+		});
+		hotkeyMenu.add(new AbstractAction("Add hotkey (set fade out time)") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) (getGUIController().getFadeOut(playListUUID) / 1000.0));
+				if (value != null)
+					parent.getGUIController().setHotkey(e, fadeOutAction.specialize((int) (value * 1000)));
+			}
+			
+		});
+		hotkeyMenu.add(new AbstractAction("Add hotkey (set overlap time)") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) (getGUIController().getOverlap(playListUUID) / 1000.0));
+				if (value != null)
+					parent.getGUIController().setHotkey(e, overlapAction.specialize((int) (value * 1000)));
+			}
+			
+		});
+		
+		List<JMenuItem> itemList = new LinkedList<JMenuItem>();
+		//for (Tuple<String,Action> tuple : getGUIController().getHotkeys())
+		
+		parent.propagatePopupMenu(popup, e);
 	}
 }

@@ -17,12 +17,15 @@
 
 package smartsound.view.gui;
 
+import java.awt.BorderLayout;
 import java.awt.Window;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
+import javax.swing.BorderFactory;
 import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 
 public class HotkeyDialog extends JDialog {
 	
@@ -50,8 +53,13 @@ public class HotkeyDialog extends JDialog {
 			
 		});
 		
-		setSize(100, 50);
-		setLocation(window.getX() + window.getWidth() / 2 - 50, window.getY() + window.getHeight() / 2 - 25);
+		setSize(150, 75);
+		JLabel label = new JLabel("<html><p align=\"center\">Press hotkey or ESC to abort.</p></html>");
+		JPanel panel = new JPanel(new BorderLayout());
+		panel.setBorder(BorderFactory.createEtchedBorder());
+		panel.add(label);
+		add(panel);
+		setLocation(window.getX() + window.getWidth() / 2 - getWidth() / 2, window.getY() + window.getHeight() / 2 - getHeight() / 2);
 		
 		setVisible(true);
 	}

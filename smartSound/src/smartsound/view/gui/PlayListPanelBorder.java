@@ -40,11 +40,14 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.UUID;
 
 import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
 import javax.swing.JMenu;
+import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
@@ -52,6 +55,7 @@ import javax.swing.border.TitledBorder;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
+import smartsound.common.Tuple;
 import smartsound.controller.Launcher;
 import smartsound.view.Action;
 
@@ -66,6 +70,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 	private Action playAction;
     private Action stopAction;
     private Action repeatListAction;
+    private Action volumeAction;
     
     private static final int PLAY = 0;
     private static final int STOP = 1;
@@ -95,6 +100,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
         playAction = parent.getGUIController().getPlayPlayListAction(playListUUID);
     	stopAction = parent.getGUIController().getStopAction(playListUUID);
     	repeatListAction = parent.getGUIController().getRepeatListAction(playListUUID);
+    	volumeAction = parent.getGUIController().getVolumeAction(playListUUID);
         
         panel.addMouseMotionListener(this);
         panel.addMouseWheelListener(this);
@@ -389,15 +395,74 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 						}
 						parent.getGUIController().setHotkey(
 								dialog.getEvent(),
-								getGUIController().getVolumeAction(playListUUID).specialize(volume));
+								volumeAction.specialize(volume));
 						wnd.toFront();
 					}
 		
 				});
 			}
+		
+		String[] split;
+		String itemTitle;
+		List<JMenuItem> menuItemList = new LinkedList<JMenuItem>();
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(playAction)) {
+			split = tuple.first.split("\\|");
+			itemTitle = "Play (";
+			itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
+			if (!split[0].equals("0")) itemTitle += "+";
+			itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
+			itemTitle += ")";
+			menuItemList.add(new JMenuItem(itemTitle));
+		}
+		
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(stopAction)) {
+			split = tuple.first.split("\\|");
+			itemTitle = "Stop (";
+			itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
+			if (!split[0].equals("0")) itemTitle += "+";
+			itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
+			itemTitle += ")";
+			menuItemList.add(new JMenuItem(itemTitle));
+		}
+		
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(repeatListAction)) {
+			split = tuple.first.split("\\|");
+			itemTitle = "Set 'repeat' to '";
+			itemTitle += tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 1);
+			itemTitle += "' <div align=\"right\">(";
+			itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
+			if (!split[0].equals("0")) itemTitle += "+";
+			itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
+			itemTitle += ")</div>";
+			menuItemList.add(new JMenuItem("<html>" + itemTitle + "</html>"));
+		}
+		
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(volumeAction)) {
+			split = tuple.first.split("\\|");
+			itemTitle = "Set 'volume' to '";
+			itemTitle += Math.round(((float) tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 1))*100.0);
+			itemTitle += "%' (";
+			itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
+			if (!split[0].equals("0")) itemTitle += "+";
+			itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
+			itemTitle += ")";
+			menuItemList.add(new JMenuItem(itemTitle));
+		}
+
+		if (hotkeyMenu.getItemCount()  > 0 && !menuItemList.isEmpty()) {
+			hotkeyMenu.addSeparator();
+		}
+		
+		for (JMenuItem item : menuItemList) {
+			hotkeyMenu.add(item);
+		}
+		
 		if (hotkeyMenu.getItemCount() == 0) {
 			hotkeyMenu.setEnabled(false);
 		}
+		
+		
+		
 		propagatePopupMenu(popup, e);
 	}
 
@@ -459,6 +524,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
     public void updateVolume(float volume)
     {
         lastKnownVolume = volume;
+        volumeAction.execute(volume);
         setVolume(volume);
     }
     
@@ -487,7 +553,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 		setActive(2, getGUIController().isRepeatList(playListUUID));
 		setActive(3, true);
 		setActive(4, true);
-		updateVolume(getGUIController().getVolume(playListUUID));
+		setVolume(getGUIController().getVolume(playListUUID));
 		panel.repaint();
 	}
 
