@@ -139,4 +139,12 @@ public abstract class AbstractViewController
 	public abstract PropertyMap getPropertyMap();
 
 	public abstract void loadFromPropertyMap(PropertyMap pMap) throws LoadingException;
+
+	public abstract String getHotkey(Action action);
+
+	public abstract void removeHotkey(Action action);
+
+	public abstract Action getSetRepeatItemAction(UUID uuid);
+
+	public abstract Action getSetItemChainWithAction(UUID uuid);
 }

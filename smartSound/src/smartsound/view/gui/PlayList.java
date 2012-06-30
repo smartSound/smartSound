@@ -32,7 +32,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -93,13 +92,17 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 	protected Point lastMouseClickPosition;
 	private Action playIndexAction;
 	private Action playUUIDAction;
+	private Action setRepeatItemAction;
+	private Action setChainWithAction;
 	protected IGUILadder parent;
 
-	public PlayList(IGUILadder parent, PlayListDataModel model) {
+	public PlayList(IGUILadder parent, final PlayListDataModel model) {
 		super(model);
 		this.parent = parent;
 		playIndexAction = parent.getGUIController().getPlayIndexAction(model.getUUID());
 		playUUIDAction = parent.getGUIController().getPlayItemAction(model.getUUID());
+		setRepeatItemAction = parent.getGUIController().getSetRepeatItemAction(model.getUUID());
+		setChainWithAction = parent.getGUIController().getSetItemChainWithAction(model.getUUID());
 		
 		lastMouseClickPosition = null;
 		model.addListDataListener(this);
@@ -121,8 +124,10 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 					return;
 				if (e.getClickCount() == 2)
 					playList.play(index);
-				else if (playList.insideRepeatRectOf(e.getPoint()) == index)
-					playList.getModel().getElementAt(index).toggleRepeating();
+				else if (playList.insideRepeatRectOf(e.getPoint()) == index) {
+					ItemData data = model.getElementAt(index);
+					setRepeatItemAction.execute(data.getUUID(), !data.isRepeating());
+				}
 			}
 		});
 		addMouseMotionListener(new MouseAdapter() {
@@ -157,13 +162,13 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 				JMenu hotkeyMenu = new JMenu("Hotkeys");
 				menu.add(hotkeyMenu);
 				
-				
-				final JMenuItem addHotkeyItem = new JMenuItem();
 				int index = locationToIndex(e.getPoint());
 				if (index != -1) {
 					final ItemData item = getElementAt(locationToIndex(e.getPoint()));
-					addHotkeyItem.setAction(
-					new AbstractAction("Add Hotkey (Play '"
+					hotkeyMenu.add(new TitledSeparator("Add hotkeys", false));
+					hotkeyMenu.add(
+							new AddMenuItem(
+									new AbstractAction("Play '"
 							+ item.toString() + "')") {
 						@Override
 						public void actionPerformed(ActionEvent arg0) {
@@ -176,33 +181,98 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 							wnd.toFront();
 						}
 
-					});
+					}));
+					hotkeyMenu.add(new AddMenuItem(
+							new AbstractAction("Set 'repeat' for '"
+							+ item.toString() + "')") {
+						@Override
+						public void actionPerformed(ActionEvent arg0) {
+							Window wnd = SwingUtilities
+									.getWindowAncestor(PlayList.this);
+							HotkeyDialog dialog = new HotkeyDialog(wnd);
+							String result = (String) UserInput.getInput(panel, "Turn on", "Turn off");
+							PlayList.this.parent.getGUIController().setHotkey(
+									dialog.getEvent(),
+									setRepeatItemAction.specialize(item.getUUID(), result.equals("Turn on")));
+							wnd.toFront();
+						}
+					}));
+					hotkeyMenu.add(new AddMenuItem(
+							new AbstractAction("Set chaining for '"
+							+ item.toString() + "')") {
+						@Override
+						public void actionPerformed(ActionEvent arg0) {
+							Window wnd = SwingUtilities
+									.getWindowAncestor(PlayList.this);
+							HotkeyDialog dialog = new HotkeyDialog(wnd);
+							Object[] possibilities = new Object[model.getSize()];
+							possibilities[0] = "None";
+							int j = 1;
+							ItemData data;
+							for (int i = 0; i < model.getSize(); i++) {
+								data = model.getElementAt(i);
+								if (!data.getUUID().equals(item.getUUID())) {
+									possibilities[j++] = data;
+								}
+							}
+							Object result = UserInput.getInput(panel, possibilities);
+							PlayList.this.parent.getGUIController().setHotkey(
+									dialog.getEvent(),
+									setChainWithAction.specialize(item.getUUID(), result.equals("None") ? null : ((ItemData) result).getUUID()));
+							wnd.toFront();
+						}
+					}));
 				} else {
-					addHotkeyItem.setText("Add Hotkey");
+					JMenuItem addHotkeyItem = new JMenuItem();
+					addHotkeyItem.setText("Click on an entry to add hotkeys");
 					addHotkeyItem.setEnabled(false);
+					hotkeyMenu.add(addHotkeyItem);
 				}
-				hotkeyMenu.add(addHotkeyItem);
 				
 				String itemTitle;
-				String[] split;
 				UUID itemUUID;
+				List<JMenuItem> itemList = new LinkedList<JMenuItem>();
+				
 				List<Tuple<String,Action>> hotkeyList = PlayList.this.parent.getGUIController().getHotkeys(playUUIDAction);
-				if (!hotkeyList.isEmpty()) {
-					hotkeyMenu.addSeparator();
-				}
 				for (Tuple<String,Action> tuple : hotkeyList) {
-					split = tuple.first.split("\\|");
 					itemTitle = "Play '";
 					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 1);
 					itemTitle += getElement(itemUUID).toString();
-					itemTitle += "' (";
+					itemTitle += "'";
 					
-					itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
-					if (!split[0].equals("0")) itemTitle += "+";
-					itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
-					itemTitle += ")";
+					itemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
+				}
+				
+				hotkeyList = PlayList.this.parent.getGUIController().getHotkeys(setRepeatItemAction);
+				for (Tuple<String,Action> tuple : hotkeyList) {
+					itemTitle = (boolean) tuple.second.getLastParam() ? "Turn on" : "Turn off";
+					itemTitle += " 'repeat' of '";
+					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 2);
+					itemTitle += getElement(itemUUID).toString();
+					itemTitle += "'";
 					
-					hotkeyMenu.add(new JMenuItem(itemTitle));
+					itemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
+				}
+				
+				hotkeyList = PlayList.this.parent.getGUIController().getHotkeys(setChainWithAction);
+				for (Tuple<String,Action> tuple : hotkeyList) {
+					itemTitle = "Set chaining of '";
+					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 2);
+					itemTitle += itemUUID == null ? "None" : getElement(itemUUID).toString();
+					itemTitle += "' to '";
+					itemUUID = (UUID) tuple.second.getLastParam();
+					itemTitle += getElement(itemUUID).toString();
+					itemTitle += "'";
+					
+					itemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
+				}
+				
+				if (!itemList.isEmpty()) {
+					hotkeyMenu.addSeparator();
+				}
+				
+				for (JMenuItem item : itemList) {
+					hotkeyMenu.add(item);
 				}
 				
 				propagatePopupMenu(menu, e);

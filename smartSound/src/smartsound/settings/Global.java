@@ -17,6 +17,7 @@
 
 package smartsound.settings;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -27,7 +28,9 @@ import java.util.Properties;
 public class Global {
 	
 	private Global() throws IOException {
-		properties.load(new FileReader(configFilePath));
+		File file = new File(configFilePath);
+		file.createNewFile();
+		properties.load(new FileReader(file));
 	}
 
 	private static Global instance;

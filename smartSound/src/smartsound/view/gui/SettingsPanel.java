@@ -17,6 +17,7 @@
 
 package smartsound.view.gui;
 
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -44,6 +45,7 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
+import smartsound.common.Tuple;
 import smartsound.view.Action;
 
 
@@ -115,6 +117,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			}	
 		});
 		
+		randomizeCheckBox.setFocusable(false);
+		addMouseListenerToComponent(randomizeCheckBox);
+		
 		stopAfterEachSoundCheckBox.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(ChangeEvent e) {
@@ -123,6 +128,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				if (!editing) stopAfterEachSoundAction.execute(source.isSelected());
 			}	
 		});
+		
+		stopAfterEachSoundCheckBox.setFocusable(false);
+		addMouseListenerToComponent(stopAfterEachSoundCheckBox);
 		
 		playAtRandomVolumesSliderFrom.addChangeListener(new ChangeListener() {
 			@Override
@@ -138,6 +146,10 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				}
 			}
 		});
+		
+		playAtRandomVolumesSliderFrom.setFocusable(false);
+		addMouseListenerToComponent(playAtRandomVolumesSliderFrom);
+		
 		playAtRandomVolumesSliderTo.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(ChangeEvent e) {
@@ -153,6 +165,10 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			}
 		});
 		
+		playAtRandomVolumesSliderTo.setFocusable(false);
+		addMouseListenerToComponent(playAtRandomVolumesSliderTo);
+		
+		
 		fadeInSpinner.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(ChangeEvent e) {
@@ -162,6 +178,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		});
 		fadeInSpinner.setEditor(new JSpinner.NumberEditor(fadeInSpinner, "0.0 s"));
 		fadeInSpinner.setPreferredSize(new Dimension(70,fadeInSpinner.getPreferredSize().height));
+		fadeInSpinner.setFocusable(false);
+		addMouseListenerToComponent(fadeInSpinner);
+		
 		
 		fadeOutSpinner.addChangeListener(new ChangeListener() {
 			@Override
@@ -172,6 +191,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		});
 		fadeOutSpinner.setEditor(new JSpinner.NumberEditor(fadeOutSpinner, "0.0 s"));
 		fadeOutSpinner.setPreferredSize(new Dimension(70,fadeOutSpinner.getPreferredSize().height));
+		fadeOutSpinner.setFocusable(false);
+		addMouseListenerToComponent(fadeOutSpinner);
+		
 		
 		overlapSpinner.addChangeListener(new ChangeListener() {
 			@Override
@@ -182,6 +204,8 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		});
 		overlapSpinner.setEditor(new JSpinner.NumberEditor(overlapSpinner, "0.0 s"));
 		overlapSpinner.setPreferredSize(new Dimension(70, overlapSpinner.getPreferredSize().height));
+		overlapSpinner.setFocusable(false);
+		addMouseListenerToComponent(overlapSpinner);
 		
 		
 		GridBagConstraints constraints = new GridBagConstraints();
@@ -312,7 +336,6 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 	}
 	
 	private void refreshValues() {
-		System.out.println("refreshing!");
 		editing = true;
 		randomizeCheckBox.setSelected(parent.getGUIController().isRandomizeList(playListUUID));
 		stopAfterEachSoundCheckBox.setSelected(parent.getGUIController().isStopAfterEachSound(playListUUID));
@@ -322,6 +345,35 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		fadeOutSpinner.setValue((int) parent.getGUIController().getFadeOut(playListUUID)/1000.0);
 		overlapSpinner.setValue((int) parent.getGUIController().getOverlap(playListUUID)/1000.0);
 		editing = false;
+	}
+	
+	private void addMouseListenerToComponent(Component comp) {
+		comp.addMouseListener(new MouseListener() {
+
+			@Override
+			public void mouseClicked(MouseEvent arg0) {}
+
+			@Override
+			public void mouseEntered(MouseEvent arg0) {}
+
+			@Override
+			public void mouseExited(MouseEvent arg0) {}
+
+			@Override
+			public void mousePressed(MouseEvent arg0) {
+				if (arg0.isPopupTrigger()) {
+					showPopup(arg0);
+				}
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent arg0) {
+				if (arg0.isPopupTrigger()) {
+					showPopup(arg0);
+				}
+			}
+			
+		});
 	}
 
 	@Override
@@ -360,7 +412,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 	public void mouseClicked(MouseEvent arg0) {}
 
 	@Override
-	public void mouseEntered(MouseEvent arg0) {}
+	public void mouseEntered(MouseEvent arg0) {
+		
+	}
 
 	@Override
 	public void mouseExited(MouseEvent arg0) {}
@@ -381,8 +435,13 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		JPopupMenu popup = new JPopupMenu();
 		JMenu hotkeyMenu = new JMenu("Hotkeys");
 		popup.add(hotkeyMenu);
+		String title;
+		List<JMenuItem> itemList = new LinkedList<JMenuItem>();
 		
-		hotkeyMenu.add(new AbstractAction("Add hotkey (set randomizing)") {
+		hotkeyMenu.add(new TitledSeparator("Add hotkeys", false));
+		
+		hotkeyMenu.add(new AddMenuItem(
+				new AbstractAction("Set randomizing") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
@@ -390,20 +449,35 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				parent.getGUIController().setHotkey(e, randomizeListAction.specialize("Turn on".equals(obj)));
 			}
 			
-		});
+		}));
 		
-		hotkeyMenu.add(new AbstractAction("Add hotkey (set randomize volume from)") {
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(randomizeListAction)) {
+			title = ((boolean) tuple.second.getLastParam() == true) ? "Turn on" : "Turn off";
+			title += " 'Repeat List'";
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
+		}
+		
+		hotkeyMenu.add(new AddMenuItem(
+				new AbstractAction("Set randomize volume (minimum)") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
 				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 100.0d, 1.0d, (int) (getGUIController().getRandomizeVolumeFrom(playListUUID) * 100.0));
 				if (value != null)
 					parent.getGUIController().setHotkey(e, randomizeVolumeFromAction.specialize((float) (value / 100.0d)));
-			}
-			
-		});
+			}	
+		}));
 		
-		hotkeyMenu.add(new AbstractAction("Add hotkey (set randomize volume to)") {
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(randomizeVolumeFromAction)) {
+			title = "Set 'randomize volume from' to '";
+			title += tuple.second.getLastParam();
+			title += "'";
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
+		}
+		
+		
+		hotkeyMenu.add(new AddMenuItem(
+				new AbstractAction("Set randomize volume (maximum)") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
@@ -411,20 +485,33 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				if (value != null)
 					parent.getGUIController().setHotkey(e, randomizeVolumeToAction.specialize((float) (value / 100.0d)));
 			}
-			
-		});
+		}));
 		
-		hotkeyMenu.add(new AbstractAction("Add hotkey (set stop after each sound)") {
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(randomizeVolumeToAction)) {
+			title = "Set 'randomize volume to' to '";
+			title += tuple.second.getLastParam();
+			title += "'";
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
+		}
+		
+		hotkeyMenu.add(new AddMenuItem(
+				new AbstractAction("Set stop after each sound") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
 				Object obj = UserInput.getInput(SettingsPanel.this, "Turn on", "Turn off");
 				parent.getGUIController().setHotkey(e, stopAfterEachSoundAction.specialize("Turn on".equals(obj)));
 			}
-			
-		});
+		}));
 		
-		hotkeyMenu.add(new AbstractAction("Add hotkey (set fade in time)") {
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(stopAfterEachSoundAction)) {
+			title = ((boolean) tuple.second.getLastParam() == true) ? "Turn on" : "Turn off";
+			title += " 'Stop after each sound'";
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
+		}
+		
+		hotkeyMenu.add(new AddMenuItem(
+				new AbstractAction("Set fade in") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
@@ -432,9 +519,17 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				if (value != null)
 					parent.getGUIController().setHotkey(e, fadeInAction.specialize((int) (value * 1000)));
 			}
-			
-		});
-		hotkeyMenu.add(new AbstractAction("Add hotkey (set fade out time)") {
+		}));
+		
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(fadeInAction)) {
+			title = "Set 'fade in' to '";
+			title += tuple.second.getLastParam();
+			title += "'";
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
+		}
+		
+		hotkeyMenu.add(new AddMenuItem(
+				new AbstractAction("Set fade out") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
@@ -442,9 +537,17 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				if (value != null)
 					parent.getGUIController().setHotkey(e, fadeOutAction.specialize((int) (value * 1000)));
 			}
-			
-		});
-		hotkeyMenu.add(new AbstractAction("Add hotkey (set overlap time)") {
+		}));
+		
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(fadeOutAction)) {
+			title = "Set 'fade out' to '";
+			title += tuple.second.getLastParam();
+			title += "'";
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
+		}
+		
+		hotkeyMenu.add(new AddMenuItem(
+				new AbstractAction("Set overlap") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
@@ -452,11 +555,22 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				if (value != null)
 					parent.getGUIController().setHotkey(e, overlapAction.specialize((int) (value * 1000)));
 			}
-			
-		});
+		}));
 		
-		List<JMenuItem> itemList = new LinkedList<JMenuItem>();
-		//for (Tuple<String,Action> tuple : getGUIController().getHotkeys())
+		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(overlapAction)) {
+			title = "Set 'overlap' to '";
+			title += tuple.second.getLastParam();
+			title += "'";
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
+		}
+		
+		if (!itemList.isEmpty()) {
+			hotkeyMenu.add(new TitledSeparator("Remove hotkeys", true));
+		}
+		
+		for (JMenuItem item : itemList) {
+			hotkeyMenu.add(item);
+		}
 		
 		parent.propagatePopupMenu(popup, e);
 	}

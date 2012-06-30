@@ -53,10 +53,6 @@ public class Action
         }
         try
         {
-        	int i = 0;
-        	for (Type t : method.getGenericParameterTypes()) {
-        		System.out.println(t + " : " + params[i++].getClass());
-        	}
             method.invoke(instance, params);
         }
         catch(IllegalAccessException e)
@@ -80,6 +76,9 @@ public class Action
 	}
     
     public boolean isParentOf(Action other) {
+    	if (other == null) {
+    		return false;
+    	}
     	if (!method.equals(other.method)) {
     		return false;
     	}
@@ -118,6 +117,10 @@ public class Action
 			return null;
 		}
 		return defaultParams[index];
+	}
+	
+	public Object getLastParam() {
+		return defaultParams[defaultParams.length - 1];
 	}
 	
 	public int getNoOfDefaultParams() {

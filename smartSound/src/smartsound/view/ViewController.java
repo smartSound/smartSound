@@ -824,4 +824,64 @@ public class ViewController extends AbstractViewController
 			}
 		}
 	}
+
+	@Override
+	public String getHotkey(Action action) {
+		for (Entry<String,Set<Action>> entry : hotkeyMap.entrySet()) {
+			if (entry.getValue().contains(action)) {
+				return entry.getKey();
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public void removeHotkey(Action action) {
+		System.out.println("=====================");
+		for (Entry<String,Set<Action>> entry : hotkeyMap.entrySet()) {
+			for (Action ac : entry.getValue()) {
+				System.out.println(ac);
+			}
+			if(entry.getValue().remove(action)) {
+				if (entry.getValue().isEmpty()) {
+					hotkeyMap.remove(entry.getKey());
+				}
+				return;
+			}
+		}
+	}
+
+	@Override
+	public Action getSetRepeatItemAction(UUID playListUUID) {
+		Method method;
+		try {
+			method = ViewController.class.getMethod("setItemIsRepeating",
+					new Class[] { UUID.class, UUID.class, boolean.class });
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+		Object params[] = { playListUUID };
+		return new Action(method, this, params);
+	}
+
+	@Override
+	public Action getSetItemChainWithAction(UUID playListUUID) {
+		Method method;
+        try
+        {
+            method = ViewController.class.getMethod("setItemChainWith", new Class[] {
+                UUID.class, UUID.class, UUID.class
+            });
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+            return null;
+        }
+        Object params[] = {
+            playListUUID
+        };
+        return new Action(method, this, params);
+	}
 }

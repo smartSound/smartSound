@@ -17,6 +17,8 @@
 
 package smartsound.controller;
 
+import java.awt.Color;
+import java.awt.Insets;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -34,10 +36,9 @@ import java.util.Stack;
 import java.util.logging.Logger;
 
 import javax.swing.JFileChooser;
-import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.UIManager;
-import javax.swing.UIManager.LookAndFeelInfo;
+import javax.swing.UnsupportedLookAndFeelException;
 
 import smartsound.common.Tuple;
 import smartsound.player.SoundEngineSingleton;
@@ -61,15 +62,34 @@ public class Launcher {
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException {
-		try {
-		    for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-		        if ("Nimbus".equals(info.getName())) {
-		            UIManager.setLookAndFeel(info.getClassName());
-		            break;
-		        }
-		    }
-		} catch (Exception e) {
-		    // If Nimbus is not available, you can set the GUI to another look and feel.
+		javax.swing.UIManager.LookAndFeelInfo alookandfeelinfo[];
+		int j = (alookandfeelinfo = UIManager.getInstalledLookAndFeels()).length;
+		for (int i = 0; i < j; i++) {
+			javax.swing.UIManager.LookAndFeelInfo info = alookandfeelinfo[i];
+			if (!"Nimbus".equals(info.getName()))
+				continue;
+			UIManager.put("nimbusBase", new Color(0x8B4513));
+			UIManager.put("nimbusBlueGrey", new Color(0xCDBE70));
+			UIManager.put("control", new Color(237,220,167));
+			try {
+				UIManager.setLookAndFeel(info.getClassName());
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InstantiationException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (UnsupportedLookAndFeelException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			UIManager.put("Menu.contentMargins", new Insets(0,2,0,5));
+			UIManager.put("MenuItem.contentMargins", new Insets(0,2,0,5));
+
+			break;
 		}
 		
 		String pluginName = null;

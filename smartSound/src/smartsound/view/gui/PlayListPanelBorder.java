@@ -63,7 +63,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 {
 
 	private IGUILadder parent;
-	private PlayListPanel panel; //ONLY for determination of border insets
+	private PlayListPanel panel;
 	private float lastKnownVolume;
 	protected boolean movedClockwise = false;
 	private UUID playListUUID;
@@ -235,6 +235,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
     public void setShowVolume(boolean show)
     {
         showVolume = show;
+        panel.repaint();
     }
 
     public void setVolume(double volume)
@@ -274,6 +275,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 
 	@Override
 	public void mouseExited(MouseEvent arg0) {
+		panel.setCursor(Cursor.getDefaultCursor());
 		setShowVolume(false);
 	}
 
@@ -320,11 +322,13 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 		popup.add(hotkeyMenu);
 		int index = posToIconIndex(e.getPoint());
 		String description = null;
-		if (index != -1)
+		if (index != -1) {
+			hotkeyMenu.add(new TitledSeparator("Add hotkeys", false));
 			switch(index) {
 			case PLAY:
-				description = "Add Hotkey (Play)";
-				hotkeyMenu.add(new AbstractAction(description) {
+				description = "Play";
+				hotkeyMenu.add(new AddMenuItem(
+						new AbstractAction(description) {
 					@Override
 					public void actionPerformed(ActionEvent arg0) {
 						Window wnd = SwingUtilities
@@ -336,11 +340,12 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 						wnd.toFront();
 					}
 		
-				});
+				}));
 				break;
 			case STOP:
-				description = "Add Hotkey (Stop)";
-				hotkeyMenu.add(new AbstractAction(description) {
+				description = "Stop";
+				hotkeyMenu.add(new AddMenuItem(
+						new AbstractAction(description) {
 					@Override
 					public void actionPerformed(ActionEvent arg0) {
 						Window wnd = SwingUtilities
@@ -352,42 +357,42 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 						wnd.toFront();
 					}
 		
-				});
+				}));
 				break;
 			case REPEAT:
-				description = "Add Hotkey (Set repeat)";
-				hotkeyMenu.add(new AbstractAction(description) {
+				description = "Set repeat";
+				hotkeyMenu.add(new AddMenuItem(
+						new AbstractAction(description) {
 					@Override
 					public void actionPerformed(ActionEvent arg0) {
 						Window wnd = SwingUtilities
 								.getWindowAncestor(panel);
 						HotkeyDialog dialog = new HotkeyDialog(wnd);
 						Object[] options = {true, false};
-						int result = JOptionPane.showOptionDialog(panel, "Setting 'repeat list' to...", "Choose a value",
-								JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, true);
+						String result = (String) UserInput.getInput(panel, "Turn on", "Turn off");
 						parent.getGUIController().setHotkey(
 								dialog.getEvent(),
-								getGUIController().getRepeatListAction(playListUUID).specialize(result == 0 ? true : false));
+								getGUIController().getRepeatListAction(playListUUID).specialize(result.equals("Turn on")));
 						wnd.toFront();
 					}
 		
-				});
+				}));
 				
 				
 				break;
 			case SPEAKER:
-				description = "Add Hotkey (Set volume)";
-				hotkeyMenu.add(new AbstractAction(description) {
+				description = "Set volume";
+				hotkeyMenu.add(new AddMenuItem(
+						new AbstractAction(description) {
 					@Override
 					public void actionPerformed(ActionEvent arg0) {
 						Window wnd = SwingUtilities
 								.getWindowAncestor(panel);
 						HotkeyDialog dialog = new HotkeyDialog(wnd);
-						Object[] options = {true, false};
-						String stringResult = JOptionPane.showInputDialog("Insert a number between 0 and 100", 100);
+						Double result = UserInput.getInput(panel, 0, 100, 1, getGUIController().getVolume(playListUUID) * 100);
 						float volume;
 						try {
-							volume = Float.valueOf(stringResult) / 100.0f;
+							volume = result.floatValue() / 100.0f;
 							volume = Math.max(volume, 0);
 							volume = Math.min(volume, 100);
 						} catch (NumberFormatException e) {
@@ -399,58 +404,38 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener, 
 						wnd.toFront();
 					}
 		
-				});
+				}));
 			}
+		}
 		
 		String[] split;
 		String itemTitle;
 		List<JMenuItem> menuItemList = new LinkedList<JMenuItem>();
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(playAction)) {
-			split = tuple.first.split("\\|");
-			itemTitle = "Play (";
-			itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
-			if (!split[0].equals("0")) itemTitle += "+";
-			itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
-			itemTitle += ")";
-			menuItemList.add(new JMenuItem(itemTitle));
+			itemTitle = "Play";
+			menuItemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
 		}
 		
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(stopAction)) {
-			split = tuple.first.split("\\|");
-			itemTitle = "Stop (";
-			itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
-			if (!split[0].equals("0")) itemTitle += "+";
-			itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
-			itemTitle += ")";
-			menuItemList.add(new JMenuItem(itemTitle));
+			itemTitle = "Stop";
+			menuItemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
 		}
 		
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(repeatListAction)) {
-			split = tuple.first.split("\\|");
-			itemTitle = "Set 'repeat' to '";
-			itemTitle += tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 1);
-			itemTitle += "' <div align=\"right\">(";
-			itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
-			if (!split[0].equals("0")) itemTitle += "+";
-			itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
-			itemTitle += ")</div>";
-			menuItemList.add(new JMenuItem("<html>" + itemTitle + "</html>"));
+			itemTitle = (boolean) tuple.second.getLastParam() ? "Turn on" : "Turn off";
+			itemTitle += " 'repeat list'";
+			menuItemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
 		}
 		
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(volumeAction)) {
-			split = tuple.first.split("\\|");
-			itemTitle = "Set 'volume' to '";
+			itemTitle = "Set 'volume' to ";
 			itemTitle += Math.round(((float) tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 1))*100.0);
-			itemTitle += "%' (";
-			itemTitle += KeyEvent.getKeyModifiersText(Integer.valueOf(split[0]));
-			if (!split[0].equals("0")) itemTitle += "+";
-			itemTitle += KeyEvent.getKeyText(Integer.valueOf(split[1]));
-			itemTitle += ")";
-			menuItemList.add(new JMenuItem(itemTitle));
+			itemTitle += "%";
+			menuItemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
 		}
 
 		if (hotkeyMenu.getItemCount()  > 0 && !menuItemList.isEmpty()) {
-			hotkeyMenu.addSeparator();
+			hotkeyMenu.add(new TitledSeparator("Remove hotkeys", true));
 		}
 		
 		for (JMenuItem item : menuItemList) {

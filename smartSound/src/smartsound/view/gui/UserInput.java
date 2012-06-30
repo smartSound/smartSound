@@ -131,7 +131,7 @@ public class UserInput extends JDialog {
 		
 		setMinimumSize(new Dimension(100,-1));
 		pack();
-		setLocation(comp.getX() + comp.getWidth() / 2 - getWidth() / 2, comp.getY() + comp.getHeight() / 2 - getHeight() / 2);
+		setLocation((int) (comp.getLocationOnScreen().getX() + comp.getWidth() / 2 - getWidth() / 2), (int) (comp.getLocationOnScreen().getY() + comp.getHeight() / 2 - getHeight() / 2));
 		setVisible(true);
 	}
 	

@@ -181,10 +181,12 @@ public class PluginChooser extends JPanel implements ListSelectionListener,
 			} catch (InterruptedException interruptedexception) {
 			}
 		try {
-			if (chooser.getRemember().isSelected())
+			if (chooser.getRemember().isSelected()) {
 				Global.getInstance().setProperty("plugin",
 						chooser.getResult().getName());
+			}
 		} catch (IOException ioexception) {
+			ioexception.printStackTrace();
 		}
 		return chooser.getResult();
 	}

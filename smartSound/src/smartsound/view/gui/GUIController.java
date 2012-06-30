@@ -17,12 +17,15 @@
 
 package smartsound.view.gui;
 
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -30,12 +33,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 
 import smartsound.common.Tuple;
@@ -55,11 +60,19 @@ public class GUIController implements IGUILadder {
 		playListPanelMap = new HashMap<UUID, PlayListPanel>();
 		viewController = controller;
 		JFrame frame = new JFrame();
+		BufferedImage image = null;
+		try {
+			image = ImageIO.read(new File("images/Note.png"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		frame.setIconImage(image);
 		frame.setDefaultCloseOperation(3);
 		frame.setTitle(" smartSound v0.3");
 		frame.setSize(300, 400);
 		frame.setLocation(397, 47);
 		frame.setVisible(true);
+		frame.setBackground(new Color(0xEE, 0xE8, 0xAA));
 		
 		frame.addKeyListener(new KeyListener() {
 
@@ -78,19 +91,7 @@ public class GUIController implements IGUILadder {
 		
 		mainPanel = new JPanel(new GridLayout());
 		frame.getContentPane().add(mainPanel);
-		try {
-			javax.swing.UIManager.LookAndFeelInfo alookandfeelinfo[];
-			int j = (alookandfeelinfo = UIManager.getInstalledLookAndFeels()).length;
-			for (int i = 0; i < j; i++) {
-				javax.swing.UIManager.LookAndFeelInfo info = alookandfeelinfo[i];
-				if (!"Nimbus".equals(info.getName()))
-					continue;
-				UIManager.setLookAndFeel(info.getClassName());
-				break;
-			}
 
-		} catch (Exception exception) {
-		}
 		UUID uuid;
 		for (Iterator<UUID> iterator = viewController.getPlayListUUIDs()
 				.iterator(); iterator.hasNext(); newPlayList(uuid))
@@ -244,7 +245,8 @@ public class GUIController implements IGUILadder {
 	}
 
 	public void setHotkey(KeyEvent keyEvent, Action action) {
-		String hotkey = keyEvent.getModifiers() + "|" + keyEvent.getKeyCode();
+		KeyStroke keyStroke = KeyStroke.getKeyStrokeForEvent(keyEvent);
+		String hotkey = keyStroke.getModifiers() + "|" + keyStroke.getKeyCode();
 		viewController.setHotkey(hotkey, action);
 	}
 
@@ -285,6 +287,14 @@ public class GUIController implements IGUILadder {
 	
 	public List<Tuple<String,Action>> getHotkeys(Action parent) {
 		return viewController.getHotkeys(parent);
+	}
+	
+	public String getHotkey(Action action) {
+		return viewController.getHotkey(action);
+	}
+	
+	public void removeHotkey(Action action) {
+		viewController.removeHotkey(action);
 	}
 	
 	protected class SaveAction extends AbstractAction
@@ -342,4 +352,12 @@ public class GUIController implements IGUILadder {
             super("Reset plugin");
         }
     }
+
+	public Action getSetRepeatItemAction(UUID uuid) {
+		return viewController.getSetRepeatItemAction(uuid);
+	}
+
+	public Action getSetItemChainWithAction(UUID uuid) {
+		return viewController.getSetItemChainWithAction(uuid);
+	}
 }
