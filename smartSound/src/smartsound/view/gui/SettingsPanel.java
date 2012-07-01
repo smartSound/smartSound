@@ -444,7 +444,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				new AbstractAction("Set randomizing") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 				Object obj = UserInput.getInput(SettingsPanel.this, "Turn on", "Turn off");
 				parent.getGUIController().setHotkey(e, randomizeListAction.specialize("Turn on".equals(obj)));
 			}
@@ -461,7 +461,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				new AbstractAction("Set randomize volume (minimum)") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 100.0d, 1.0d, (int) (getGUIController().getRandomizeVolumeFrom(playListUUID) * 100.0));
 				if (value != null)
 					parent.getGUIController().setHotkey(e, randomizeVolumeFromAction.specialize((float) (value / 100.0d)));
@@ -480,7 +480,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				new AbstractAction("Set randomize volume (maximum)") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 100.0d, 1.0d, (int) (getGUIController().getRandomizeVolumeTo(playListUUID) * 100.0));
 				if (value != null)
 					parent.getGUIController().setHotkey(e, randomizeVolumeToAction.specialize((float) (value / 100.0d)));
@@ -498,7 +498,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				new AbstractAction("Set stop after each sound") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 				Object obj = UserInput.getInput(SettingsPanel.this, "Turn on", "Turn off");
 				parent.getGUIController().setHotkey(e, stopAfterEachSoundAction.specialize("Turn on".equals(obj)));
 			}
@@ -514,7 +514,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				new AbstractAction("Set fade in") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) (getGUIController().getFadeIn(playListUUID) / 1000.0));
 				if (value != null)
 					parent.getGUIController().setHotkey(e, fadeInAction.specialize((int) (value * 1000)));
@@ -532,7 +532,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				new AbstractAction("Set fade out") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) (getGUIController().getFadeOut(playListUUID) / 1000.0));
 				if (value != null)
 					parent.getGUIController().setHotkey(e, fadeOutAction.specialize((int) (value * 1000)));
@@ -550,7 +550,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 				new AbstractAction("Set overlap") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent();
+				KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 				Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) (getGUIController().getOverlap(playListUUID) / 1000.0));
 				if (value != null)
 					parent.getGUIController().setHotkey(e, overlapAction.specialize((int) (value * 1000)));

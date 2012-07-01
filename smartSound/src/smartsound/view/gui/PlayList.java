@@ -78,13 +78,8 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 	}
 
 	private static final long serialVersionUID = 0x1d435aeadf9beb73L;
-	private static final int ICONWIDTH = 16;
-	private static final int ICONHEIGHT = 16;
-	private static final int ICONGAP = 5;
-	private static final int CELLBORDER = 3;
 	private static final Color activeColor = Color.BLUE;
 	private static final int RIGHTBORDER = 40;
-	private static final int ARROWHEADWIDTH = 12;
 	private javax.swing.JList.DropLocation dropLocation;
 	private int dropAction;
 	private int dropSourceIndex;
@@ -174,9 +169,9 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 						public void actionPerformed(ActionEvent arg0) {
 							Window wnd = SwingUtilities
 									.getWindowAncestor(PlayList.this);
-							HotkeyDialog dialog = new HotkeyDialog(wnd);
+							HotkeyDialog dialog = new HotkeyDialog(wnd); KeyEvent event = dialog.getEvent(); if (event.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 							PlayList.this.parent.getGUIController().setHotkey(
-									dialog.getEvent(),
+									event,
 									playUUIDAction.specialize(item.getUUID()));
 							wnd.toFront();
 						}
@@ -189,10 +184,10 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 						public void actionPerformed(ActionEvent arg0) {
 							Window wnd = SwingUtilities
 									.getWindowAncestor(PlayList.this);
-							HotkeyDialog dialog = new HotkeyDialog(wnd);
+							HotkeyDialog dialog = new HotkeyDialog(wnd); KeyEvent event = dialog.getEvent(); if (event.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 							String result = (String) UserInput.getInput(panel, "Turn on", "Turn off");
 							PlayList.this.parent.getGUIController().setHotkey(
-									dialog.getEvent(),
+									event,
 									setRepeatItemAction.specialize(item.getUUID(), result.equals("Turn on")));
 							wnd.toFront();
 						}
@@ -204,7 +199,7 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 						public void actionPerformed(ActionEvent arg0) {
 							Window wnd = SwingUtilities
 									.getWindowAncestor(PlayList.this);
-							HotkeyDialog dialog = new HotkeyDialog(wnd);
+							HotkeyDialog dialog = new HotkeyDialog(wnd); KeyEvent event = dialog.getEvent(); if (event.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 							Object[] possibilities = new Object[model.getSize()];
 							possibilities[0] = "None";
 							int j = 1;
@@ -217,7 +212,7 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 							}
 							Object result = UserInput.getInput(panel, possibilities);
 							PlayList.this.parent.getGUIController().setHotkey(
-									dialog.getEvent(),
+									event,
 									setChainWithAction.specialize(item.getUUID(), result.equals("None") ? null : ((ItemData) result).getUUID()));
 							wnd.toFront();
 						}
