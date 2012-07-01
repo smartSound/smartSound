@@ -1,5 +1,5 @@
 /* 
- *	Copyright (C) 2012 André Becker
+ *	Copyright (C) 2012 Andrï¿½ Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ import smartsound.player.ItemData;
 
 /**
  * This abstract class is a facade to divide model and view.
- * @author André Becker
+ * @author Andrï¿½ Becker
  *
  */
 public abstract class AbstractController implements IPlayListObserver {

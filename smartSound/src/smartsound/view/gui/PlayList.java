@@ -1,5 +1,5 @@
 /* 
- *	Copyright (C) 2012 André Becker
+ *	Copyright (C) 2012 Andrï¿½ Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -263,7 +263,7 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 				}
 				
 				if (!itemList.isEmpty()) {
-					hotkeyMenu.addSeparator();
+					hotkeyMenu.add(new TitledSeparator("Remove hotkeys", true));
 				}
 				
 				for (JMenuItem item : itemList) {

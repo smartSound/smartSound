@@ -1,5 +1,5 @@
 /* 
- *	Copyright (C) 2012 André Becker
+ *	Copyright (C) 2012 Andrï¿½ Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -45,6 +45,19 @@ public class ViewController extends AbstractViewController
     private AbstractController controller;
     private List<GUIController> guis;
     private Map<String, Set<Action>> hotkeyMap;
+    
+    private static final Map<String, Class<?>> primitiveTypesMap = new HashMap<String,Class<?>>();
+    static {
+    	Class<?>[] types = {
+    			boolean.class, byte.class, char.class, double.class,
+    	        float.class, int.class, long.class, short.class,
+    			boolean[].class, byte[].class, char[].class, double[].class,
+    	        float[].class, int[].class, long[].class, short[].class
+    	};
+    	for (Class<?> c : types) {
+    		primitiveTypesMap.put(c.getCanonicalName(), c);
+    	}
+    }
 
     public ViewController(AbstractController controller)
     {
@@ -731,9 +744,9 @@ public class ViewController extends AbstractViewController
 		result.put("method", method.getName());
 		
 		String methodParams = "";
-		Type[] types = method.getGenericParameterTypes();
+		Class<?>[] types = method.getParameterTypes();
 		for (int i = 0; i < types.length; i++) {
-			methodParams += types[i].toString().replace("class ", "");
+			methodParams += types[i].getCanonicalName();
 			if (i != types.length - 1) {
 				methodParams += " ";
 			}
@@ -759,8 +772,7 @@ public class ViewController extends AbstractViewController
 		Method method;
 		try {
 			for (int i = 0; i < classNames.length; i++) {
-				classes[i] = ClassLoader.getSystemClassLoader().loadClass(
-						classNames[i]);
+				classes[i] = stringToClass(classNames[i]);
 			}
 
 			method = ViewController.class
@@ -780,6 +792,11 @@ public class ViewController extends AbstractViewController
 		return new Action(method, this, defaultParams);
 	}
 	
+	private Class<?> stringToClass(String className) throws ClassNotFoundException {
+		Class<?> result = primitiveTypesMap.get(className);
+		return result != null ? result : Class.forName(className); 
+	}
+	
 	private Object stringToParam(Class<?> paramType, String stringRepresentation) {
 		if (paramType == boolean.class || paramType == Boolean.class) {
 			return Boolean.valueOf(stringRepresentation);
@@ -793,8 +810,6 @@ public class ViewController extends AbstractViewController
 			return Integer.valueOf(stringRepresentation);
 		} else if (paramType == String.class) {
 			return stringRepresentation;
-		} else {
-			System.out.println(paramType);
 		}
 		
 		return null;
@@ -820,7 +835,8 @@ public class ViewController extends AbstractViewController
 				if (!hotkeyMap.containsKey(hotkey)) {
 					hotkeyMap.put(hotkey, new HashSet<Action>());
 				}
-				hotkeyMap.get(hotkey).add(actionMap.get(UUID.fromString(pMap.get(key))));
+				for (String split : pMap.get(key).split(" "))
+					hotkeyMap.get(hotkey).add(actionMap.get(UUID.fromString(split)));
 			}
 		}
 	}
@@ -837,11 +853,7 @@ public class ViewController extends AbstractViewController
 
 	@Override
 	public void removeHotkey(Action action) {
-		System.out.println("=====================");
 		for (Entry<String,Set<Action>> entry : hotkeyMap.entrySet()) {
-			for (Action ac : entry.getValue()) {
-				System.out.println(ac);
-			}
 			if(entry.getValue().remove(action)) {
 				if (entry.getValue().isEmpty()) {
 					hotkeyMap.remove(entry.getKey());
