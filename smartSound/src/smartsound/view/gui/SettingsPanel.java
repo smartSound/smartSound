@@ -1,5 +1,5 @@
 /* 
- *	Copyright (C) 2012 André Becker
+ *	Copyright (C) 2012 Andrï¿½ Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -427,6 +427,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 
 	@Override
 	public void mouseReleased(MouseEvent arg0) {
+		SwingUtilities.getWindowAncestor(this).requestFocus();
 		if (arg0.isPopupTrigger())
 			showPopup(arg0);
 	}

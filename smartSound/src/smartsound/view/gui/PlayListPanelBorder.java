@@ -1,5 +1,5 @@
 /* 
- *	Copyright (C) 2012 André Becker
+ *	Copyright (C) 2012 Andrï¿½ Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -322,11 +322,13 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 				else if (index == REPEAT)
 					repeatListAction.execute(!parent.getGUIController()
 							.isRepeatList(playListUUID));
-				else if (index == SETTINGS)
+				else if (index == SETTINGS) {
 					((CardLayout) panel.getLayout()).next(panel);
+				}
 			} else if (e.isPopupTrigger()) {
 				showPopup(e);
 			}
+			SwingUtilities.getWindowAncestor(panel).requestFocus();
 		}
 	}
 
@@ -466,8 +468,8 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 					getGUIController()));
 		}
 
-		if (hotkeyMenu.getItemCount() > 0 && !menuItemList.isEmpty()) {
-			hotkeyMenu.add(new TitledSeparator("Remove hotkeys", true));
+		if (!menuItemList.isEmpty()) {
+			hotkeyMenu.add(new TitledSeparator("Remove hotkeys", hotkeyMenu.getItemCount() > 0));
 		}
 
 		for (JMenuItem item : menuItemList) {

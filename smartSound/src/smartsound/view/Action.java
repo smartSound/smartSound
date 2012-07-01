@@ -1,5 +1,5 @@
 /* 
- *	Copyright (C) 2012 André Becker
+ *	Copyright (C) 2012 Andrï¿½ Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -97,7 +97,6 @@ public class Action
     }
 
 	public Action specialize(Object... additionalParams) {
-		System.out.println(this.toString());
     	if (this.defaultParams.length + additionalParams.length > method.getGenericParameterTypes().length) {
     		throw new IllegalArgumentException();
     	}
@@ -107,7 +106,6 @@ public class Action
         }
     	
     	Action result = new Action(method, instance, params);
-    	System.out.println(result.toString());
     	
     	return result;
     }

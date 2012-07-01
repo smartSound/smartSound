@@ -1,5 +1,5 @@
 /* 
- *	Copyright (C) 2012 André Becker
+ *	Copyright (C) 2012 Andrï¿½ Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 package smartsound.view.gui;
 
 import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 
 import javax.swing.JFrame;
@@ -29,6 +30,24 @@ public class MainFrame extends JFrame implements IGUILadder {
 	
 	public MainFrame(GUIController controller) {
 		this.controller = controller;
+		
+		this.addKeyListener(new KeyListener() {
+
+			@Override
+			public void keyPressed(KeyEvent arg0) {
+			}
+
+			@Override
+			public void keyReleased(KeyEvent arg0) {
+				propagateHotkey(arg0);
+			}
+
+			@Override
+			public void keyTyped(KeyEvent arg0) {
+				
+			}
+			
+		});
 	}
 
 	@Override

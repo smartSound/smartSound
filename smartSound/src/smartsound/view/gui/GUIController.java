@@ -1,5 +1,5 @@
 /* 
- *	Copyright (C) 2012 André Becker
+ *	Copyright (C) 2012 Andrï¿½ Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -41,7 +41,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
-import javax.swing.UIManager;
 
 import smartsound.common.Tuple;
 import smartsound.player.IPlayListObserver;
@@ -59,7 +58,7 @@ public class GUIController implements IGUILadder {
 	public GUIController(AbstractViewController controller) {
 		playListPanelMap = new HashMap<UUID, PlayListPanel>();
 		viewController = controller;
-		JFrame frame = new JFrame();
+		final JFrame frame = new MainFrame(this);
 		BufferedImage image = null;
 		try {
 			image = ImageIO.read(new File("images/Note.png"));
@@ -74,21 +73,6 @@ public class GUIController implements IGUILadder {
 		frame.setVisible(true);
 		frame.setBackground(new Color(0xEE, 0xE8, 0xAA));
 		
-		frame.addKeyListener(new KeyListener() {
-
-			@Override
-			public void keyPressed(KeyEvent arg0) {}
-
-			@Override
-			public void keyReleased(KeyEvent arg0) {
-				propagateHotkey(arg0);
-			}
-
-			@Override
-			public void keyTyped(KeyEvent arg0) {			}
-			
-		});
-		
 		mainPanel = new JPanel(new GridLayout());
 		frame.getContentPane().add(mainPanel);
 
@@ -96,7 +80,6 @@ public class GUIController implements IGUILadder {
 		for (Iterator<UUID> iterator = viewController.getPlayListUUIDs()
 				.iterator(); iterator.hasNext(); newPlayList(uuid))
 			uuid = (UUID) iterator.next();
-
 	}
 
 	public void addObserver(IPlayListObserver observer, UUID playListUUID) {

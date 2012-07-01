@@ -1,5 +1,5 @@
 /* 
- *	Copyright (C) 2012 André Becker
+ *	Copyright (C) 2012 Andrï¿½ Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,8 +33,6 @@ public class AddMenuItem extends JMenuItem {
 		super(action);
 		Image img = new ImageIcon(iconPath).getImage();
 		this.setHorizontalAlignment(SwingConstants.LEFT);
-		System.out.println(this.getAlignmentX());
-		System.out.println(this.getAlignmentY());
 		int border = getBorder().getBorderInsets(this).top + getBorder().getBorderInsets(this).bottom;
 		setIcon(new ImageIcon(img.getScaledInstance(-1, getPreferredSize().height - border,  java.awt.Image.SCALE_SMOOTH)));
 	}
