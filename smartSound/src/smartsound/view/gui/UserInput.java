@@ -60,10 +60,15 @@ public class UserInput extends JDialog {
 		
 		JRadioButton radioButton;
 		Map<String, Object> objectMap = new HashMap<String,Object>();
+		boolean set = false;
 		for (Object obj : possibilities) {
 			c.gridy = c.gridy + 1;
 			objectMap.put(obj.toString(), obj);
 			radioButton = new JRadioButton(obj.toString());
+			if (!set) {
+				radioButton.setSelected(true);
+				set = true;
+			}
 			panel.add(radioButton,c);
 			btnGroup.add(radioButton);
 		}

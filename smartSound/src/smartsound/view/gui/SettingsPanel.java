@@ -454,7 +454,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(randomizeListAction)) {
 			title = ((boolean) tuple.second.getLastParam() == true) ? "Turn on" : "Turn off";
-			title += " 'Repeat List'";
+			title += " 'Randomize List'";
 			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
 		}
 		
@@ -470,9 +470,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		}));
 		
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(randomizeVolumeFromAction)) {
-			title = "Set 'randomize volume from' to '";
-			title += tuple.second.getLastParam();
-			title += "'";
+			title = "Set 'randomize volume minimum' to ";
+			title += (int) ((float) tuple.second.getLastParam() * 100);
+			title += "%";
 			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
 		}
 		
@@ -489,9 +489,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		}));
 		
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(randomizeVolumeToAction)) {
-			title = "Set 'randomize volume to' to '";
-			title += tuple.second.getLastParam();
-			title += "'";
+			title = "Set 'randomize volume maximum' to ";
+			title += (int) ((float) tuple.second.getLastParam() * 100);
+			title += "%";
 			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
 		}
 		
@@ -523,9 +523,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		}));
 		
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(fadeInAction)) {
-			title = "Set 'fade in' to '";
-			title += tuple.second.getLastParam();
-			title += "'";
+			title = "Set 'fade in' to ";
+			title += (int) tuple.second.getLastParam() / 1000.0;
+			title += "s";
 			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
 		}
 		
@@ -541,9 +541,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		}));
 		
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(fadeOutAction)) {
-			title = "Set 'fade out' to '";
-			title += tuple.second.getLastParam();
-			title += "'";
+			title = "Set 'fade out' to ";
+			title += (int) tuple.second.getLastParam() / 1000.0;
+			title += "s";
 			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
 		}
 		
@@ -559,9 +559,9 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		}));
 		
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(overlapAction)) {
-			title = "Set 'overlap' to '";
-			title += tuple.second.getLastParam();
-			title += "'";
+			title = "Set 'overlap' to ";
+			title += (int) tuple.second.getLastParam() / 1000.0;
+			title += "s";
 			itemList.add(new RemoveHotkeyMenuItem(tuple.second, title, getGUIController()));
 		}
 		

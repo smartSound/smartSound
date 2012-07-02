@@ -164,7 +164,7 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 					hotkeyMenu.add(
 							new AddMenuItem(
 									new AbstractAction("Play '"
-							+ item.toString() + "')") {
+							+ item.toString() + "'") {
 						@Override
 						public void actionPerformed(ActionEvent arg0) {
 							Window wnd = SwingUtilities
@@ -179,7 +179,7 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 					}));
 					hotkeyMenu.add(new AddMenuItem(
 							new AbstractAction("Set 'repeat' for '"
-							+ item.toString() + "')") {
+							+ item.toString() + "'") {
 						@Override
 						public void actionPerformed(ActionEvent arg0) {
 							Window wnd = SwingUtilities
@@ -194,7 +194,7 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 					}));
 					hotkeyMenu.add(new AddMenuItem(
 							new AbstractAction("Set chaining for '"
-							+ item.toString() + "')") {
+							+ item.toString() + "'") {
 						@Override
 						public void actionPerformed(ActionEvent arg0) {
 							Window wnd = SwingUtilities
@@ -479,10 +479,10 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 
 	public Rectangle getRepeatRect() {
 		Rectangle result = getTitleRect();
-		int width = 16;
-		int height = 16;
+		int width = 18;
+		int height = 18;
 		int x = result.x + result.width + 5;
-		int y = (result.y + result.height / 2) - 8;
+		int y = (result.y + result.height / 2) - height / 2;
 		result.setSize(width, height);
 		result.setLocation(x, y);
 		return result;
