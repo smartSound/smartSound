@@ -1,5 +1,5 @@
-/* 
- *	Copyright (C) 2012 Andrï¿½ Becker
+/*
+ *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ package smartsound.view.gui;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -38,21 +39,24 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.swing.AbstractAction;
+import javax.swing.ImageIcon;
 import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
 import smartsound.common.Tuple;
 import smartsound.player.ItemData;
 import smartsound.view.Action;
+import smartsound.view.gui.IconManager.IconType;
 
 public class PlayList extends JList<ItemData> implements ListDataListener,
-		IGUILadder {
+IGUILadder {
 	class ChainWithTuple implements Comparable<ChainWithTuple> {
 
 		public int getStartIndex() {
@@ -63,15 +67,16 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 			return endIndex;
 		}
 
-		public int compareTo(ChainWithTuple cwt) {
+		@Override
+		public int compareTo(final ChainWithTuple cwt) {
 			return Math.abs(startIndex - endIndex)
 					- Math.abs(cwt.startIndex - cwt.endIndex);
 		}
 
-		private int startIndex;
-		private int endIndex;
+		private final int startIndex;
+		private final int endIndex;
 
-		public ChainWithTuple(int startIndex, int endIndex) {
+		public ChainWithTuple(final int startIndex, final int endIndex) {
 			this.startIndex = startIndex;
 			this.endIndex = endIndex;
 		}
@@ -91,28 +96,35 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 	private Action setChainWithAction;
 	protected IGUILadder parent;
 
-	public PlayList(IGUILadder parent, final PlayListDataModel model) {
+	public PlayList(final IGUILadder parent, final PlayListDataModel model) {
 		super(model);
 		this.parent = parent;
-		playIndexAction = parent.getGUIController().getPlayIndexAction(model.getUUID());
-		playUUIDAction = parent.getGUIController().getPlayItemAction(model.getUUID());
-		setRepeatItemAction = parent.getGUIController().getSetRepeatItemAction(model.getUUID());
-		setChainWithAction = parent.getGUIController().getSetItemChainWithAction(model.getUUID());
-		
+		playIndexAction = parent.getGUIController().getPlayIndexAction(
+				model.getUUID(), "Play an index");
+		playUUIDAction = parent.getGUIController().getPlayItemAction(
+				model.getUUID(), "Play an UUID");
+		setRepeatItemAction = parent.getGUIController().getSetRepeatItemAction(
+				model.getUUID(), "Repeat Item by UUID");
+		setChainWithAction = parent.getGUIController()
+				.getSetItemChainWithAction(model.getUUID(), "Chain with item");
+		setBackground(UIManager.getColor("List.background"));
+
 		lastMouseClickPosition = null;
 		model.addListDataListener(this);
 		getInputMap()
-				.put(KeyStroke.getKeyStroke("released DELETE"), "released");
+		.put(KeyStroke.getKeyStroke("released DELETE"), "released");
 		getActionMap().put("released", new AbstractAction() {
 
-			public void actionPerformed(ActionEvent e) {
+			@Override
+			public void actionPerformed(final ActionEvent e) {
 				((PlayList) e.getSource()).removeSelectedEntries();
 			}
 		});
 		setAutoscrolls(true);
 		addMouseListener(new MouseAdapter() {
 
-			public void mouseClicked(MouseEvent e) {
+			@Override
+			public void mouseClicked(final MouseEvent e) {
 				PlayList playList = (PlayList) e.getSource();
 				int index = playList.locationToIndex(e.getPoint());
 				if (index < 0)
@@ -121,13 +133,15 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 					playList.play(index);
 				else if (playList.insideRepeatRectOf(e.getPoint()) == index) {
 					ItemData data = model.getElementAt(index);
-					setRepeatItemAction.execute(data.getUUID(), !data.isRepeating());
+					setRepeatItemAction.execute(data.getUUID(),
+							!data.isRepeating());
 				}
 			}
 		});
 		addMouseMotionListener(new MouseAdapter() {
 
-			public void mouseMoved(MouseEvent e) {
+			@Override
+			public void mouseMoved(final MouseEvent e) {
 				PlayList playList = (PlayList) e.getSource();
 				if (playList.insideChainRectOf(e.getPoint()) != -1
 						|| playList.insideRepeatRectOf(e.getPoint()) != -1)
@@ -139,67 +153,81 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 		});
 		addMouseListener(new MouseAdapter() {
 
-			public void mousePressed(MouseEvent e) {
+			@Override
+			public void mousePressed(final MouseEvent e) {
 				if (e.isPopupTrigger())
 					showMenu(e);
 				lastMouseClickPosition = e.getPoint();
 			}
 
-			public void mouseReleased(MouseEvent e) {
+			@Override
+			public void mouseReleased(final MouseEvent e) {
 				if (e.isPopupTrigger())
 					showMenu(e);
 				lastMouseClickPosition = null;
 			}
 
 			private void showMenu(final MouseEvent e) {
-				PlayListContextMenu menu = new PlayListContextMenu(getGUIController(),
-						(PlayList) e.getSource());
+				JPopupMenu menu = new JPopupMenu();
 				JMenu hotkeyMenu = new JMenu("Hotkeys");
+				hotkeyMenu.setIcon(new ImageIcon(IconManager.getImage(IconType.HOTKEY)));
 				menu.add(hotkeyMenu);
-				
+
 				int index = locationToIndex(e.getPoint());
 				if (index != -1) {
-					final ItemData item = getElementAt(locationToIndex(e.getPoint()));
+					final ItemData item = getElementAt(locationToIndex(e
+							.getPoint()));
 					hotkeyMenu.add(new TitledSeparator("Add hotkeys", false));
-					hotkeyMenu.add(
-							new AddMenuItem(
-									new AbstractAction("Play '"
+					hotkeyMenu.add(new AddMenuItem(new AbstractAction("Play '"
 							+ item.toString() + "'") {
 						@Override
-						public void actionPerformed(ActionEvent arg0) {
+						public void actionPerformed(final ActionEvent arg0) {
 							Window wnd = SwingUtilities
 									.getWindowAncestor(PlayList.this);
-							HotkeyDialog dialog = new HotkeyDialog(wnd); KeyEvent event = dialog.getEvent(); if (event.getKeyCode() == KeyEvent.VK_ESCAPE) return;
+							HotkeyDialog dialog = new HotkeyDialog(wnd);
+							KeyEvent event = dialog.getEvent();
+							if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
+								return;
 							PlayList.this.parent.getGUIController().setHotkey(
+									getUUID(),
 									event,
-									playUUIDAction.specialize(item.getUUID()));
+									playUUIDAction.specialize("Play '" + item.toString() + "'", item.getUUID()));
 							wnd.toFront();
 						}
 
 					}));
-					hotkeyMenu.add(new AddMenuItem(
-							new AbstractAction("Set 'repeat' for '"
-							+ item.toString() + "'") {
+					hotkeyMenu.add(new AddMenuItem(new AbstractAction(
+							"Set 'repeat' for '" + item.toString() + "'") {
 						@Override
-						public void actionPerformed(ActionEvent arg0) {
+						public void actionPerformed(final ActionEvent arg0) {
 							Window wnd = SwingUtilities
 									.getWindowAncestor(PlayList.this);
-							HotkeyDialog dialog = new HotkeyDialog(wnd); KeyEvent event = dialog.getEvent(); if (event.getKeyCode() == KeyEvent.VK_ESCAPE) return;
-							String result = (String) UserInput.getInput(panel, "Turn on", "Turn off");
+							HotkeyDialog dialog = new HotkeyDialog(wnd);
+							KeyEvent event = dialog.getEvent();
+							if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
+								return;
+							String result = (String) UserInput.getInput(panel,
+									"Turn on", "Turn off");
 							PlayList.this.parent.getGUIController().setHotkey(
+									getUUID(),
 									event,
-									setRepeatItemAction.specialize(item.getUUID(), result.equals("Turn on")));
+									setRepeatItemAction.specialize(
+											"Set 'repeat' for '" + item.toString() + "'",
+											item.getUUID(),
+											result.equals("Turn on")));
 							wnd.toFront();
 						}
 					}));
-					hotkeyMenu.add(new AddMenuItem(
-							new AbstractAction("Set chaining for '"
-							+ item.toString() + "'") {
+					hotkeyMenu.add(new AddMenuItem(new AbstractAction(
+							"Set chaining for '" + item.toString() + "'") {
 						@Override
-						public void actionPerformed(ActionEvent arg0) {
+						public void actionPerformed(final ActionEvent arg0) {
 							Window wnd = SwingUtilities
 									.getWindowAncestor(PlayList.this);
-							HotkeyDialog dialog = new HotkeyDialog(wnd); KeyEvent event = dialog.getEvent(); if (event.getKeyCode() == KeyEvent.VK_ESCAPE) return;
+							HotkeyDialog dialog = new HotkeyDialog(wnd);
+							KeyEvent event = dialog.getEvent();
+							if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
+								return;
 							Object[] possibilities = new Object[model.getSize()];
 							possibilities[0] = "None";
 							int j = 1;
@@ -210,10 +238,17 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 									possibilities[j++] = data;
 								}
 							}
-							Object result = UserInput.getInput(panel, possibilities);
+							Object result = UserInput.getInput(panel,
+									possibilities);
 							PlayList.this.parent.getGUIController().setHotkey(
+									getUUID(),
 									event,
-									setChainWithAction.specialize(item.getUUID(), result.equals("None") ? null : ((ItemData) result).getUUID()));
+									setChainWithAction.specialize(
+											"Set 'repeat' for '" + item.toString() + "'",
+											item.getUUID(),
+											result.equals("None") ? null
+													: ((ItemData) result)
+													.getUUID()));
 							wnd.toFront();
 						}
 					}));
@@ -223,74 +258,96 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 					addHotkeyItem.setEnabled(false);
 					hotkeyMenu.add(addHotkeyItem);
 				}
-				
+
 				String itemTitle;
 				UUID itemUUID;
 				List<JMenuItem> itemList = new LinkedList<JMenuItem>();
-				
-				List<Tuple<String,Action>> hotkeyList = PlayList.this.parent.getGUIController().getHotkeys(playUUIDAction);
-				for (Tuple<String,Action> tuple : hotkeyList) {
+
+				List<Tuple<String, Action>> hotkeyList = PlayList.this.parent
+						.getGUIController().getHotkeys(playUUIDAction);
+				for (Tuple<String, Action> tuple : hotkeyList) {
 					itemTitle = "Play '";
-					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 1);
+					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second
+							.getNoOfDefaultParams() - 1);
 					itemTitle += getElement(itemUUID).toString();
 					itemTitle += "'";
-					
-					itemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
+
+					itemList.add(new RemoveHotkeyMenuItem(tuple.second,
+							itemTitle, getGUIController()));
 				}
-				
-				hotkeyList = PlayList.this.parent.getGUIController().getHotkeys(setRepeatItemAction);
-				for (Tuple<String,Action> tuple : hotkeyList) {
-					itemTitle = (boolean) tuple.second.getLastParam() ? "Turn on" : "Turn off";
+
+				hotkeyList = PlayList.this.parent.getGUIController()
+						.getHotkeys(setRepeatItemAction);
+				for (Tuple<String, Action> tuple : hotkeyList) {
+					itemTitle = (boolean) tuple.second.getLastParam() ? "Turn on"
+							: "Turn off";
 					itemTitle += " 'repeat' of '";
-					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 2);
+					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second
+							.getNoOfDefaultParams() - 2);
 					itemTitle += getElement(itemUUID).toString();
 					itemTitle += "'";
-					
-					itemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
+
+					itemList.add(new RemoveHotkeyMenuItem(tuple.second,
+							itemTitle, getGUIController()));
 				}
-				
-				hotkeyList = PlayList.this.parent.getGUIController().getHotkeys(setChainWithAction);
-				for (Tuple<String,Action> tuple : hotkeyList) {
+
+				hotkeyList = PlayList.this.parent.getGUIController()
+						.getHotkeys(setChainWithAction);
+				for (Tuple<String, Action> tuple : hotkeyList) {
 					itemTitle = "Set chaining of '";
-					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second.getNoOfDefaultParams() - 2);
-					itemTitle += itemUUID == null ? "None" : getElement(itemUUID).toString();
+					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second
+							.getNoOfDefaultParams() - 2);
+					itemTitle += itemUUID == null ? "None" : getElement(
+							itemUUID).toString();
 					itemTitle += "' to '";
 					itemUUID = (UUID) tuple.second.getLastParam();
 					itemTitle += getElement(itemUUID).toString();
 					itemTitle += "'";
-					
-					itemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle, getGUIController()));
+
+					itemList.add(new RemoveHotkeyMenuItem(tuple.second,
+							itemTitle, getGUIController()));
 				}
-				
+
 				if (!itemList.isEmpty()) {
 					hotkeyMenu.add(new TitledSeparator("Remove hotkeys", true));
 				}
-				
+
 				for (JMenuItem item : itemList) {
 					hotkeyMenu.add(item);
 				}
-				
+
+				menu.add(new AbstractAction("Remove selected items", new ImageIcon(IconManager.getImage(IconType.REMOVE))) {
+					@Override
+					public void actionPerformed(final ActionEvent e) {
+						removeSelectedEntries();
+					}
+				});
+
 				propagatePopupMenu(menu, e);
 			}
 		});
 		addKeyListener(new KeyListener() {
 
-			public void keyPressed(KeyEvent keyevent) {
+			@Override
+			public void keyPressed(final KeyEvent keyevent) {
 			}
 
-			public void keyReleased(KeyEvent arg0) {
+			@Override
+			public void keyReleased(final KeyEvent arg0) {
 				propagateHotkey(arg0);
 			}
 
-			public void keyTyped(KeyEvent keyevent) {
+			@Override
+			public void keyTyped(final KeyEvent keyevent) {
 			}
 		});
-		setFixedCellHeight(30);
+		setFixedCellHeight(32);
 		model.addListDataListener(this);
 		setCellRenderer(new PainterLabel());
 		setTransferHandler(new PlayListTransferHandler());
 		setDragEnabled(true);
 		setSelectionBackground(new Color(225, 225, 225));
+		updateMinimumSize();
 	}
 
 	protected void removeSelectedEntries() {
@@ -301,25 +358,26 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 		clearSelection();
 	}
 
-	protected void play(int index) {
+	protected void play(final int index) {
 		playIndexAction.execute(index);
 	}
 
-	public void setDropLocation(javax.swing.JList.DropLocation loc) {
+	public void setDropLocation(final javax.swing.JList.DropLocation loc) {
 		dropLocation = loc;
 	}
 
-	public void setDropAction(int action) {
+	public void setDropAction(final int action) {
 		dropAction = action;
 	}
 
-	public void setDropSourceIndex(int index) {
+	public void setDropSourceIndex(final int index) {
 		dropSourceIndex = index;
 	}
 
-	public void paintComponent(Graphics g) {
-		super.paintComponent(g);
+	@Override
+	public void paintComponent(final Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
+		super.paintComponent(g2d);
 		Color color = new Color(0, 0, 0, 128);
 		g2d.setColor(color);
 		Stroke s = new BasicStroke(2.0F, 1, 1);
@@ -353,8 +411,8 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 		}
 	}
 
-	private void drawArrow(Graphics2D g2d, int startIndex, int targetIndex,
-			int offset) {
+	private void drawArrow(final Graphics2D g2d, final int startIndex,
+			final int targetIndex, final int offset) {
 		Rectangle bounds = getCellBounds(startIndex, startIndex);
 		int x1 = (bounds.x + bounds.width) - 40;
 		int y1 = bounds.y + bounds.height / 2;
@@ -381,14 +439,18 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 		g2d.fillPolygon(poly);
 	}
 
-	private void drawChaining(Graphics2D g2d) {
+	private void drawChaining(final Graphics2D g2d) {
 		PlayListDataModel model = getModel();
 		ItemData entry;
 		ChainWithTuple tuple;
 		List<ChainWithTuple> tuples = new LinkedList<ChainWithTuple>();
+		int index;
 		for (int i = 0; i < model.getSize(); i++) {
 			entry = model.getElementAt(i);
 			if (entry.getChainWith() != null) {
+				index = model.getIndexFromUuid(entry.getChainWith());
+				if (index < 0)
+					continue;
 				tuple = new ChainWithTuple(i, model.getIndexFromUuid(entry
 						.getChainWith()));
 				tuples.add(tuple);
@@ -453,6 +515,7 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 		}
 	}
 
+	@Override
 	public PlayListDataModel getModel() {
 		if (!(super.getModel() instanceof PlayListDataModel))
 			return null;
@@ -467,39 +530,42 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 	}
 
 	public Rectangle getTitleRect() {
-		Rectangle result = getCellRect();
-		int width = result.width - 32 - 20;
-		int height = result.height;
-		int x = result.x + 5;
-		int y = result.y;
-		result.setSize(width, height);
-		result.setLocation(x, y);
-		return result;
+		Rectangle cellRect = getCellRect();
+		Rectangle repeatRect = getRepeatRect();
+
+		int width = repeatRect.x - cellRect.x - 10;
+		int height = cellRect.height;
+		int x = cellRect.x + 5;
+		int y = cellRect.y;
+		cellRect.setSize(width, height);
+		cellRect.setLocation(x, y);
+		return cellRect;
 	}
 
 	public Rectangle getRepeatRect() {
-		Rectangle result = getTitleRect();
-		int width = 18;
-		int height = 18;
-		int x = result.x + result.width + 5;
-		int y = (result.y + result.height / 2) - height / 2;
+		Rectangle result = getChainRect();
+		Rectangle cellRect = getCellRect();
+		int width = 22;
+		int height = 22;
+		int x = result.x + - width - 5;
+		int y = (cellRect.y + cellRect.height / 2) - height / 2;
 		result.setSize(width, height);
 		result.setLocation(x, y);
 		return result;
 	}
 
 	public Rectangle getChainRect() {
-		Rectangle result = getTitleRect();
-		int width = 16;
-		int height = 16;
-		int x = result.x + result.width + 10 + 16;
-		int y = (result.y + result.height / 2) - 8;
+		Rectangle result = getCellRect();
+		int width = 22;
+		int height = 22;
+		int x = result.x + result.width - width - 5;
+		int y = (result.y + result.height / 2) - height / 2;
 		result.setSize(width, height);
 		result.setLocation(x, y);
 		return result;
 	}
 
-	public int insideChainRectOf(Point pos) {
+	public int insideChainRectOf(final Point pos) {
 		int index = locationToIndex(pos);
 		if (index < 0)
 			return -1;
@@ -512,54 +578,62 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 			return -1;
 	}
 
-	public int insideRepeatRectOf(Point pos) {
+	public int insideRepeatRectOf(final Point pos) {
 		int index = locationToIndex(pos);
 		if (index < 0)
 			return -1;
 		Rectangle bounds = getCellBounds(index, index);
 		Rectangle repeatRect = getRepeatRect();
 		repeatRect
-				.setLocation(repeatRect.x + bounds.x, repeatRect.y + bounds.y);
+		.setLocation(repeatRect.x + bounds.x, repeatRect.y + bounds.y);
 		if (repeatRect.contains(pos))
 			return index;
 		else
 			return -1;
 	}
 
-	public void contentsChanged(ListDataEvent e) {
+	@Override
+	public void contentsChanged(final ListDataEvent e) {
+		//FIXME: Hack for activity in TabbePane
+		Window wnd = SwingUtilities.getWindowAncestor(this);
+		if (wnd != null)
+			wnd.repaint();
 		repaint();
 	}
 
-	public void intervalAdded(ListDataEvent listdataevent) {
+	@Override
+	public void intervalAdded(final ListDataEvent listdataevent) {
 	}
 
-	public void intervalRemoved(ListDataEvent listdataevent) {
+	@Override
+	public void intervalRemoved(final ListDataEvent listdataevent) {
 	}
 
 	public UUID getUUID() {
 		return getModel().getUUID();
 	}
 
-	public void setChainWith(UUID source, UUID target) {
+	public void setChainWith(final UUID source, final UUID target) {
 		getModel().setChainWith(source, target);
 	}
 
-	public void importItems(UUID playListUUID, List<UUID> itemUUIDs,
-			int targetIndex, boolean copy) {
+	public void importItems(final UUID playListUUID,
+			final List<UUID> itemUUIDs, final int targetIndex,
+			final boolean copy) {
 		getModel().importItems(playListUUID, itemUUIDs, targetIndex, copy);
 		if (getParent() != null)
 			getParent().revalidate();
 	}
 
-	public ItemData getElementAt(int index) {
+	public ItemData getElementAt(final int index) {
 		return getModel().getElementAt(index);
 	}
-	
-	public ItemData getElement(UUID uuid) {
+
+	public ItemData getElement(final UUID uuid) {
 		return getElementAt(getIndexFromUuid(uuid));
 	}
 
-	public int getIndexFromUuid(UUID itemUUID) {
+	public int getIndexFromUuid(final UUID itemUUID) {
 		return getModel().getIndexFromUuid(itemUUID);
 	}
 
@@ -567,19 +641,19 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 		return getModel().getSize();
 	}
 
-	public void addAll(int index, List<String> filePathList) {
+	public void addAll(final int index, final List<String> filePathList) {
 		getModel().addAll(index, filePathList);
 		if (getParent() != null)
 			getParent().revalidate();
 	}
 
-	public void addAll(List<String> filePathList) {
+	public void addAll(final List<String> filePathList) {
 		getModel().addAll(filePathList);
 		if (getParent() != null)
 			getParent().revalidate();
 	}
 
-	public void setPanel(PlayListPanel playListPanel) {
+	public void setPanel(final PlayListPanel playListPanel) {
 		panel = playListPanel;
 	}
 
@@ -593,13 +667,19 @@ public class PlayList extends JList<ItemData> implements ListDataListener,
 	}
 
 	@Override
-	public void propagateHotkey(KeyEvent event) {
+	public void propagateHotkey(final KeyEvent event) {
 		panel.propagateHotkey(event);
 	}
 
 	@Override
-	public void propagatePopupMenu(JPopupMenu menu, MouseEvent e) {
+	public void propagatePopupMenu(final JPopupMenu menu, final MouseEvent e) {
 		panel.propagatePopupMenu(menu, e);
+	}
+
+	@Override
+	public void updateMinimumSize() {
+		setMinimumSize(new Dimension(250,300));
+		parent.updateMinimumSize();
 	}
 
 }

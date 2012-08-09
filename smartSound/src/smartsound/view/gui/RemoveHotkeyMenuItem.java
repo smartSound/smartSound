@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -17,10 +17,8 @@
 
 package smartsound.view.gui;
 
-import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
-import java.awt.image.BufferedImage;
 
 import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
@@ -28,22 +26,23 @@ import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 
 import smartsound.view.Action;
+import smartsound.view.gui.IconManager.IconType;
 
 public class RemoveHotkeyMenuItem extends JMenuItem {
-	
+
 	protected Action action;
 	protected GUIController controller;
-	
-	public RemoveHotkeyMenuItem(final Action action, String description, final GUIController con) {
+
+	public RemoveHotkeyMenuItem(final Action action, final String description, final GUIController con) {
 		super(new AbstractAction(description) {
 			@Override
-			public void actionPerformed(ActionEvent arg0) {
+			public void actionPerformed(final ActionEvent arg0) {
 				con.removeHotkey(action);
 			}
 		});
 		this.controller = con;
 		this.action = action;
-		Image img = new ImageIcon("images/delete.png").getImage();
+		Image img = IconManager.getImage(IconType.REMOVE);
 		int border = getBorder().getBorderInsets(this).top + getBorder().getBorderInsets(this).bottom;
 		Image newimg = img.getScaledInstance(-1, getPreferredSize().height - border,  java.awt.Image.SCALE_SMOOTH);
 		setIcon(new ImageIcon(newimg));

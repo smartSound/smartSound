@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -40,7 +40,7 @@ public class PlayListTransferHandler extends TransferHandler {
 	private static final long serialVersionUID = 6802446968140030296L;
 
 	@Override
-	public int getSourceActions(JComponent comp) {
+	public int getSourceActions(final JComponent comp) {
 		assert comp instanceof PlayList;
 		PlayList list = (PlayList) comp;
 		if (list.insideChainRectOf(list.getMousePosition()) != -1) {
@@ -51,39 +51,39 @@ public class PlayListTransferHandler extends TransferHandler {
 	}
 
 	@Override
-	public Transferable createTransferable(JComponent comp) {
+	public Transferable createTransferable(final JComponent comp) {
 		assert comp instanceof PlayList;
 		PlayList list = (PlayList) comp;
 		assert list.getModel() instanceof PlayListDataModel;
 
 		int action = getSourceActions(comp);
-		
+
 		List<UUID> itemUUIDs = new LinkedList<UUID>();
-		
+
 		if (action == TransferHandler.COPY_OR_MOVE) {
 			for (ItemData itemData : list.getSelectedValuesList()) {
 				itemUUIDs.add(itemData.getUUID());
 			}
 			return new ItemDataTransferable(list.getUUID(), itemUUIDs);
 		} else if (action == TransferHandler.LINK) {
-			PlayListDataModel model = (PlayListDataModel) list.getModel();
+			PlayListDataModel model = list.getModel();
 			int index = list.locationToIndex(list.getMousePosition());
 			itemUUIDs.add(model.getElementAt(index).getUUID());
 			Transferable result = new ItemDataTransferable(list.getUUID(), itemUUIDs);
 			list.setDropSourceIndex(index);
 			return result;
 		}
-		
+
 		return null;
 	}
 
 	@Override
-	public void exportDone(JComponent c, Transferable t, int action) {
+	public void exportDone(final JComponent c, final Transferable t, final int action) {
 		c.repaint();
 	}
 
 	@Override
-	public boolean canImport(TransferHandler.TransferSupport t) {
+	public boolean canImport(final TransferHandler.TransferSupport t) {
 		t.setShowDropLocation(false);
 		if (t
 				.isDataFlavorSupported(ItemDataTransferable.itemDataFlavor)
@@ -100,15 +100,15 @@ public class PlayListTransferHandler extends TransferHandler {
 	}
 
 	@Override
-	public boolean importData(TransferHandler.TransferSupport t) {
+	public boolean importData(final TransferHandler.TransferSupport t) {
 		JList.DropLocation loc = (JList.DropLocation) t.getDropLocation();
-		
+
 		if (!canImport(t)) { return false; }
-		
+
 		try {
 			PlayList playList =  ((PlayList) t.getComponent());
 			List<UUID> itemUUIDs = null;
-			
+
 			if (t.isDataFlavorSupported(ItemDataTransferable.itemDataFlavor)) {
 				ItemList itemList = (ItemList) t.getTransferable().getTransferData(ItemDataTransferable.itemDataFlavor);
 				itemUUIDs = itemList.getItemUUIDs();
@@ -127,21 +127,25 @@ public class PlayListTransferHandler extends TransferHandler {
 				List<String> filePathList = new LinkedList<String>();
 
 				for (File file : fileList) {
-					filePathList.add(file.getAbsolutePath());
+					if (file.isDirectory()) {
+						filePathList.addAll(directoryToFilePathList(file));
+					} else {
+						filePathList.add(file.getAbsolutePath());
+					}
 				}
-				
+
 				if (loc.getIndex() < playList.getNumberOfItems() && loc.getIndex() >= 0) {
 					playList.addAll(loc.getIndex(), filePathList);
 				} else {
 					playList.addAll(filePathList);
 				}
-				
+
 			}
 
 			if (t.getComponent() instanceof PlayList) {
 				playList.setDropLocation(null);
 			}
-			
+
 			playList.repaint();
 		} catch (UnsupportedFlavorException e) {
 			// TODO Auto-generated catch block
@@ -151,5 +155,21 @@ public class PlayListTransferHandler extends TransferHandler {
 			e.printStackTrace();
 		}
 		return true;
+	}
+
+	private List<String> directoryToFilePathList(final File folder) {
+		assert folder.isDirectory();
+
+		List<String> returnList = new LinkedList<String>();
+
+		for (File file : folder.listFiles()) {
+			if (file.isDirectory()) {
+				returnList.addAll(directoryToFilePathList(file));
+			} else {
+				returnList.add(file.getAbsolutePath());
+			}
+		}
+
+		return returnList;
 	}
 }

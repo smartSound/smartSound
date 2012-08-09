@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@ import static jouvieje.bass.Bass.BASS_Init;
 import static jouvieje.bass.Bass.BASS_StreamCreateFile;
 import jouvieje.bass.Bass;
 import jouvieje.bass.BassInit;
+import jouvieje.bass.structures.HSTREAM;
 import smartsound.plugins.player.IPlayer;
 import smartsound.plugins.player.ISound;
 
@@ -30,20 +31,21 @@ public class SoundEngine extends smartsound.plugins.player.SoundEngine {
 		BassInit.loadLibraries();
 		BASS_Init(-1, 44100, 0, null, null);
 	}
-	
+
 	@Override
-	public IPlayer getPlayer2D(ISound sound) {
-		return new Player(BASS_StreamCreateFile(false, sound.getFilePath(), 0, 0, 0), sound);
+	public IPlayer getPlayer2D(final ISound sound) {
+		HSTREAM hstream = BASS_StreamCreateFile(false, sound.getFilePath(), 0, 0, 0);
+		return hstream != null ? new Player(hstream, sound) : null;
 	}
 
 	@Override
-	public IPlayer getPlayer3D(ISound arg0) {
+	public IPlayer getPlayer3D(final ISound arg0) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public void setAllPlayersPaused(boolean paused) {
+	public void setAllPlayersPaused(final boolean paused) {
 		if (paused) {
 			Bass.BASS_Pause();
 		} else {
@@ -52,7 +54,7 @@ public class SoundEngine extends smartsound.plugins.player.SoundEngine {
 	}
 
 	@Override
-	public void setMasterVolume(float volume) {
+	public void setMasterVolume(final float volume) {
 		Bass.BASS_SetVolume(volume);
 	}
 

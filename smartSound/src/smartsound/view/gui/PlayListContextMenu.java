@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -18,38 +18,42 @@
 package smartsound.view.gui;
 
 import java.awt.event.ActionEvent;
-import java.io.File;
-import java.io.IOException;
-import javax.swing.*;
-import smartsound.settings.Global;
-import smartsound.view.Action;
+
+import javax.swing.AbstractAction;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.UIManager;
 
 
 public class PlayListContextMenu extends JPopupMenu
 {
 	private JMenuItem saveItem;
-    private JMenuItem loadItem;
-    private PlayList list;
-    protected GUIController controller;
-	
-    protected class DeleteAction extends AbstractAction
-    {
+	private JMenuItem loadItem;
+	private final PlayList list;
+	protected GUIController controller;
 
-        public void actionPerformed(ActionEvent arg0)
-        {
-            list.removeSelectedEntries();
-        }
-        public DeleteAction()
-        {
-            super("Delete selected");
-        }
-    }
-    
-    public PlayListContextMenu(GUIController controller, PlayList list)
-    {
-        this.list = list;
-        this.controller = controller;
-        add(new JMenuItem(new DeleteAction()));
-    }
+	protected class DeleteAction extends AbstractAction
+	{
+
+		@Override
+		public void actionPerformed(final ActionEvent arg0)
+		{
+			list.removeSelectedEntries();
+		}
+		public DeleteAction()
+		{
+			super("Delete selected");
+		}
+	}
+
+	public PlayListContextMenu(final GUIController controller, final PlayList list)
+	{
+		this.list = list;
+		this.controller = controller;
+		JMenuItem item = new JMenuItem(new DeleteAction());
+		add(item);
+
+		setBackground(UIManager.getColor("Menu.background"));
+	}
 
 }

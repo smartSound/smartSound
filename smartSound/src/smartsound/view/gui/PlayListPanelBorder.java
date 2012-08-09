@@ -1,5 +1,5 @@
-/* 
- *	Copyright (C) 2012 Andrï¿½ Becker
+/*
+ *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Window;
@@ -38,17 +39,17 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
-import java.awt.geom.Rectangle2D;
-import java.io.File;
+import java.awt.image.BufferedImage;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
 import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
@@ -56,21 +57,34 @@ import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
 import smartsound.common.Tuple;
-import smartsound.controller.Launcher;
 import smartsound.view.Action;
+import smartsound.view.gui.IconManager.IconType;
 
 public class PlayListPanelBorder extends TitledBorder implements MouseListener,
-		MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
+MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 
-	private IGUILadder parent;
-	private PlayListPanel panel;
+	private final IGUILadder parent;
+	private final PlayListPanel panel;
 	private float lastKnownVolume;
 	protected boolean movedClockwise = false;
-	private UUID playListUUID;
-	private Action playAction;
-	private Action stopAction;
-	private Action repeatListAction;
-	private Action volumeAction;
+	private final UUID playListUUID;
+	private final Action playAction;
+	private final Action stopAction;
+	private final Action repeatListAction;
+	private final Action volumeAction;
+	private boolean showSettings = false;
+
+	private static final long serialVersionUID = 0xb06ba5eaf1981e0cL;
+	private Image currentImageList[];
+	private final Image imageList[];
+	private final Image imageActiveList[];
+	private final Image imageMouseOverList[];
+	private final boolean activityList[];
+	private String title;
+	private boolean showVolume;
+	private float volume;
+	private boolean dragged = false;
+	private int lastKnownIndex = -1;
 
 	private static final int PLAY = 0;
 	private static final int STOP = 1;
@@ -78,8 +92,8 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 	private static final int SETTINGS = 3;
 	private static final int SPEAKER = 4;
 
-	public PlayListPanelBorder(IGUILadder parent, PlayListDataModel model,
-			String title) {
+	public PlayListPanelBorder(final IGUILadder parent, final PlayListDataModel model,
+			final String title) {
 		super(title);
 		this.parent = parent;
 		this.panel = new PlayListPanel(this, this, model);
@@ -88,120 +102,186 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 		model.addListDataListener(this);
 
 		imageList = new Image[5];
-		imageList[PLAY] = (new ImageIcon((new File((new StringBuilder(
-				String.valueOf(Launcher.getImageDir()))).append(
-				"/arrow-play.png").toString())).getAbsolutePath())).getImage();
-		imageList[STOP] = (new ImageIcon((new File((new StringBuilder(
-				String.valueOf(Launcher.getImageDir())))
-				.append("/box-stop.png").toString())).getAbsolutePath()))
-				.getImage();
-		imageList[REPEAT] = (new ImageIcon((new File((new StringBuilder(
-				String.valueOf(Launcher.getImageDir()))).append("/repeat.png")
-				.toString())).getAbsolutePath())).getImage();
-		imageList[SETTINGS] = (new ImageIcon((new File((new StringBuilder(
-				String.valueOf(Launcher.getImageDir())))
-				.append("/settings.png").toString())).getAbsolutePath()))
-				.getImage();
-		imageList[SPEAKER] = (new ImageIcon((new File((new StringBuilder(
-				String.valueOf(Launcher.getImageDir()))).append("/speaker.png")
-				.toString())).getAbsolutePath())).getImage();
+		imageList[PLAY] = resize(IconManager.getImage(IconType.PLAY));
+		imageList[STOP] = resize(IconManager.getImage(IconType.STOP));
+		imageList[REPEAT] = resize(IconManager.getImage(IconType.REPEAT));
+		imageList[SETTINGS] = resize(IconManager.getImage(IconType.SETTINGS));
+		imageList[SPEAKER] = resize(IconManager.getImage(IconType.VOLUME));
+
+		imageActiveList = new Image[imageList.length];
+		imageMouseOverList = new Image[imageList.length];
+		currentImageList = Arrays.copyOf(imageList, imageList.length);
+
+		BufferedImage tmp;
+		for (int i = 0; i < imageList.length; i++) {
+			tmp = new BufferedImage(imageList[i].getWidth(null),
+					imageList[i].getHeight(null), BufferedImage.TYPE_INT_ARGB);
+			tmp.createGraphics().drawImage(imageList[i], 0, 0, null);
+
+			imageMouseOverList[i] = GlowUtils.addShadow(tmp, new Color(0xFF,0xFF,0xFF,0x80), 1, 3, true);
+		}
+
+		for (int i = 0; i < imageList.length; i++) {
+			tmp = new BufferedImage(imageList[i].getWidth(null),
+					imageList[i].getHeight(null), BufferedImage.TYPE_INT_ARGB);
+			tmp.createGraphics().drawImage(imageList[i], 0, 0, null);
+
+			imageActiveList[i] = GlowUtils.addGlow(tmp, new Color(0xDAA520), 4, 128, true);
+		}
 
 		activityList = new boolean[imageList.length];
-		updateButtons();
 
 		playAction = parent.getGUIController().getPlayPlayListAction(
-				playListUUID);
-		stopAction = parent.getGUIController().getStopAction(playListUUID);
+				playListUUID,
+				"Play '" + title + "'");
+		stopAction = parent.getGUIController().getStopAction(playListUUID, "Stop '" + title + "'");
 		repeatListAction = parent.getGUIController().getRepeatListAction(
-				playListUUID);
-		volumeAction = parent.getGUIController().getVolumeAction(playListUUID);
+				playListUUID,
+				"Repeat '" + title + "'"
+				);
+		volumeAction = parent.getGUIController().getVolumeAction(playListUUID,
+				"Set volume for '" + title + "'"
+				);
 
 		panel.addMouseMotionListener(this);
 		panel.addMouseWheelListener(this);
 		panel.addMouseListener(this);
 
+		setVolume(getGUIController().getVolume(playListUUID));
+		updateButtons();
+		movedClockwise = volume > 0.5d;
+
+		new Thread() {
+			@Override
+			public void run() {
+				while (true) {
+					if (lastKnownIndex > -1 && posToIconIndex(panel.getMousePosition()) == -1) {
+						lastKnownIndex = -1;
+						updateIcons();
+					}
+					try {
+						Thread.sleep(250);
+					} catch (InterruptedException e) {}
+				}
+			}
+		}.start();
 	}
 
-	private int getRight() {
-		return super.getBorderInsets(panel).right;
-		// return 8;
+	private Image resize(final Image image) {
+		float ratio = getRatio(image);
+
+		int realHeight = image.getHeight(null);
+		int maxHeight = getBorderInsets(panel).top;
+		realHeight = Math.min(realHeight, maxHeight);
+
+		return image.getScaledInstance((int) (ratio * realHeight), realHeight, Image.SCALE_DEFAULT);
 	}
 
-	private int getBottom() {
-		return super.getBorderInsets(panel).bottom;
-		// return 8;
+	@Override
+	public Insets getBorderInsets(final Component c) {
+		Insets insets = super.getBorderInsets(c);
+		return new Insets(insets.top, insets.left, insets.bottom, insets.right);
 	}
 
-	private int getLeft() {
-		return super.getBorderInsets(panel).left;
-		// return 8;
-	}
-
-	private int getTop(Image imageList[]) {
-		int minimum = 16;
-		int maximumHeight = 0;
-		Image aimage[];
-		int j = (aimage = imageList).length;
-		for (int i = 0; i < j; i++) {
-			Image img = aimage[i];
-			maximumHeight = Math.max(maximumHeight, img.getHeight(null));
-		}
-
-		return Math.max(minimum, maximumHeight + 4);
-	}
-
-	private Rectangle getImageRect(int index, int x, int y, int width,
-			int height) {
+	private Rectangle getImageRect(final int index, final int x, final int y, final int width,
+			final int height) {
 		if (index >= imageList.length)
 			return null;
-		int leftBorder = (x + width) - getRight() / 2;
+
+		Insets insets = getBorderInsets(panel);
+		int maxHeight = insets.top;
+
+
+		int leftBorder = (x + width) - insets.right / 2; //left side of the image rect
 		int i = 0;
 		for (i = imageList.length - 1; i >= index; i--) {
 			Image img = imageList[i];
 			leftBorder -= 10 + img.getWidth(null);
 		}
-
-		return new Rectangle(leftBorder, y + 2 /*
-												 * + (getTop(imageList) / 2) -
-												 * imageList
-												 * [index].getHeight(null) / 2
-												 */,
-				imageList[index].getWidth(null),
-				imageList[index].getHeight(null));
+		return new Rectangle(leftBorder, y + (maxHeight - imageList[index].getHeight(null)) / 2, imageList[index].getWidth(null), imageList[index].getHeight(null));
 	}
 
-	public void paintBorder(Component c, Graphics g, int x, int y, int width,
-			int height) {
-		super.paintBorder(c, g, x, y, width, height);
+	private float getRatio(final Image image) {
+		return image.getWidth(null) / (float)  image.getHeight(null);
+	}
+
+	private Rectangle getTitleRect(final int x, final int y, final int width, final int height) {
+		Rectangle firstRect = getImageRect(0, x, y, width, height);
+
+		int dx = x + 17;
+		Rectangle result = new Rectangle(dx, firstRect.y, firstRect.x - dx - 5, firstRect.height);
+		return result;
+	}
+
+	private void setToolTips(final int currentIndex) {
+		String toolTipText;
+		switch(currentIndex) {
+		case PLAY:
+			toolTipText = "Start playing [Autoplay: " + (activityList[PLAY] ? "on" : "off") + "]";
+			break;
+		case STOP:
+			toolTipText = "Stop";
+			break;
+		case REPEAT:
+			toolTipText = "Repeat list [" + (activityList[REPEAT] ? "on" : "off") + "]";
+			break;
+		case SETTINGS:
+			toolTipText = "Show settings";
+			break;
+		case SPEAKER:
+			toolTipText = "Set volume [" + (int) (volume*100) + "%]";
+			break;
+		default:
+			toolTipText = null;
+		}
+		panel.setToolTipText(toolTipText);
+	}
+
+	@Override
+	public void paintBorder(final Component c, final Graphics g, final int x, final int y, final int width,
+			final int height) {
+		getBorder().paintBorder(c, g, x, y, width, height);
 		Graphics2D g2d = (Graphics2D) g;
 		g2d.setBackground(c.getBackground());
 		Composite comp = g2d.getComposite();
 		g2d.setComposite(AlphaComposite.getInstance(10, 0.2F));
-		int dx = getLeft() / 2;
-		int dy = getTop(imageList) / 2;
-		// g2d.drawRect(x + dx, y + dy, width - getLeft() / 2 - getRight() / 2 -
-		// 1, height - getTop(imageList) / 2 - getBottom() / 2 - 1);
 		g2d.setComposite(comp);
 		Font font = g2d.getFont();
 		g2d.setFont(new Font(font.getName(), 1, 12));
-		Rectangle2D rect = g2d.getFontMetrics().getStringBounds(title, g2d);
-		// g2d.clearRect(x + dx + 10, (y + dy) -
-		// (g2d.getFontMetrics().getAscent() +
-		// g2d.getFontMetrics().getDescent()) / 2, (int)rect.getWidth(),
-		// (int)rect.getHeight());
-		dy += -(g2d.getFontMetrics().getAscent() + g2d.getFontMetrics()
-				.getDescent()) / 2 + g2d.getFontMetrics().getAscent();
-		// g2d.drawString(title, x + dx + 10, y + dy);
+
+		Rectangle imageRect;
 		for (int i = imageList.length - 1; i >= 0; i--) {
-			Rectangle imageRect = getImageRect(i, x, y, width, height);
-			if (!activityList[i])
-				g2d.setComposite(AlphaComposite.getInstance(10, 0.5F));
-			g2d.drawImage(imageList[i], imageRect.x, imageRect.y, null);
+			imageRect = getImageRect(i, x, y, width, height);
+			g2d.drawImage(currentImageList[i], imageRect.x, imageRect.y, null);
 			g2d.setComposite(comp);
 		}
 
+		Rectangle titleRect = getTitleRect(x, y, width, height);
+		FontMetrics fm = g2d.getFontMetrics();
+
+		String showTitle = title;
+		if (titleRect.width <= 0) {
+			showTitle = "...";
+		} else {
+			while (fm.stringWidth(showTitle) > titleRect.width) {
+				if (showTitle.endsWith("...")) {
+					showTitle = showTitle.substring(0, showTitle.length() - 3);
+				}
+				showTitle = showTitle.substring(0, showTitle.length() - 1);
+				showTitle += "...";
+				if (showTitle.length() == 3) {
+					break;
+				}
+			}
+		}
+
+		int textY = ((titleRect.y + (titleRect.height) / 2) - (fm
+				.getAscent() + fm.getDescent()) / 2) + fm.getAscent();
+		g2d.drawString(showTitle, titleRect.x,
+				textY);
+
 		if (showVolume) {
-			Rectangle imageRect = getImageRect(imageList.length - 1, x, y,
+			imageRect = getImageRect(imageList.length - 1, x, y,
 					width, height);
 			int min = Math.min(imageRect.width, imageRect.height);
 			min = (min / 2) * 2 - 1;
@@ -216,16 +296,18 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 			String percentage = String.valueOf((int) (volume * 100D));
 			font = g2d.getFont();
 			g2d.setFont(new Font(font.getName(), font.getStyle(), 10));
-			FontMetrics fm = g2d.getFontMetrics();
+			fm = g2d.getFontMetrics();
 			int stringWidth = fm.stringWidth(percentage);
-			int textY = ((imageRect.y + ((imageRect.y + min + 1) - imageRect.y) / 2) - (fm
+			textY = ((imageRect.y + ((imageRect.y + min + 1) - imageRect.y) / 2) - (fm
 					.getAscent() + fm.getDescent()) / 2) + fm.getAscent();
 			g2d.drawString(percentage, imageRect.x + (min - stringWidth) / 2,
 					textY);
 		}
 	}
 
-	public int posToIconIndex(Point pos) {
+	public int posToIconIndex(final Point pos) {
+		if (pos == null)
+			return -1;
 		int x = 0, y = 0;
 		int width = panel.getWidth();
 		int height = panel.getHeight();
@@ -238,7 +320,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 		return -1;
 	}
 
-	public void setActive(int index, boolean active) {
+	public void setActive(final int index, final boolean active) {
 		if (index >= activityList.length) {
 			return;
 		} else {
@@ -247,55 +329,48 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 		}
 	}
 
-	public void setShowVolume(boolean show) {
+	public void setShowVolume(final boolean show) {
 		showVolume = show;
 		panel.repaint();
 	}
 
-	public void setVolume(double volume) {
+	public void setVolume(final float volume) {
 		this.volume = volume;
+		lastKnownVolume = volume;
 	}
 
-	public int posToAngle(Point point, int x, int y, int width, int height) {
+	public int posToAngle(final Point point, final int x, final int y, final int width, final int height) {
 		Rectangle imageRect = getImageRect(imageList.length - 1, x, y, width,
 				height);
 		int imageCenterX = imageRect.x + imageRect.width / 2;
 		int imageCenterY = imageRect.y + imageRect.height / 2;
 		double theta = Math.atan2(point.y - imageCenterY, point.x
 				- imageCenterX);
-		for (theta += 1.5707963267948966D; theta < 0.0D; theta += 6.2831853071795862D)
-			;
+		for (theta += 1.5707963267948966D; theta < 0.0D; theta += 6.2831853071795862D);
 		return (int) Math.toDegrees(theta);
 	}
 
-	private static final long serialVersionUID = 0xb06ba5eaf1981e0cL;
-	private static final int OFFSET = 10;
-	private Image imageList[];
-	private boolean activityList[];
-	private String title;
-	private boolean showVolume;
-	private double volume;
-	private boolean dragged = false;
-
 	@Override
-	public void mouseClicked(MouseEvent e) {
-
+	public void mouseClicked(final MouseEvent e) {
+		if (posToIconIndex(e.getPoint()) < 0 && e.getClickCount() == 2) {
+			getGUIController().getPlayPlayListAction(playListUUID, "Play").execute();
+		}
 	}
 
 	@Override
-	public void mouseEntered(MouseEvent arg0) {
+	public void mouseEntered(final MouseEvent arg0) {
 		// TODO Auto-generated method stub
 
 	}
 
 	@Override
-	public void mouseExited(MouseEvent arg0) {
+	public void mouseExited(final MouseEvent arg0) {
 		panel.setCursor(Cursor.getDefaultCursor());
 		setShowVolume(false);
 	}
 
 	@Override
-	public void mousePressed(MouseEvent e) {
+	public void mousePressed(final MouseEvent e) {
 		PlayListPanel panel = (PlayListPanel) e.getSource();
 		int index = posToIconIndex(e.getPoint());
 		if (index == 4 && e.getButton() == MouseEvent.BUTTON1)
@@ -307,7 +382,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 	}
 
 	@Override
-	public void mouseReleased(MouseEvent e) {
+	public void mouseReleased(final MouseEvent e) {
 		PlayListPanel panel = (PlayListPanel) e.getSource();
 		panel.draggingSpeaker = false;
 
@@ -324,6 +399,8 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 							.isRepeatList(playListUUID));
 				else if (index == SETTINGS) {
 					((CardLayout) panel.getLayout()).next(panel);
+					showSettings = !showSettings;
+					updateButtons();
 				}
 			} else if (e.isPopupTrigger()) {
 				showPopup(e);
@@ -332,106 +409,100 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 		}
 	}
 
-	private void showPopup(MouseEvent e) {
+	private void showPopup(final MouseEvent e) {
 		JPopupMenu popup = new JPopupMenu();
 		JMenu hotkeyMenu = new JMenu("Hotkeys");
+		hotkeyMenu.setIcon(new ImageIcon(IconManager.getImage(IconType.HOTKEY)));
 		popup.add(hotkeyMenu);
 		int index = posToIconIndex(e.getPoint());
 		String description = null;
-		if (index != -1) {
-			hotkeyMenu.add(new TitledSeparator("Add hotkeys", false));
-			switch (index) {
-			case PLAY:
-				description = "Play";
-				hotkeyMenu.add(new AddMenuItem(new AbstractAction(description) {
-					@Override
-					public void actionPerformed(ActionEvent arg0) {
-						Window wnd = SwingUtilities.getWindowAncestor(panel);
-						HotkeyDialog dialog = new HotkeyDialog(wnd);
-						KeyEvent event = dialog.getEvent();
-						if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
-							return;
-						parent.getGUIController().setHotkey(
-								event,
-								getGUIController().getPlayPlayListAction(
-										playListUUID));
-						wnd.toFront();
-					}
-
-				}));
-				break;
-			case STOP:
-				description = "Stop";
-				hotkeyMenu.add(new AddMenuItem(new AbstractAction(description) {
-					@Override
-					public void actionPerformed(ActionEvent arg0) {
-						Window wnd = SwingUtilities.getWindowAncestor(panel);
-						HotkeyDialog dialog = new HotkeyDialog(wnd);
-						KeyEvent event = dialog.getEvent();
-						if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
-							return;
-						parent.getGUIController().setHotkey(event,
-								getGUIController().getStopAction(playListUUID));
-						wnd.toFront();
-					}
-
-				}));
-				break;
-			case REPEAT:
-				description = "Set repeat";
-				hotkeyMenu.add(new AddMenuItem(new AbstractAction(description) {
-					@Override
-					public void actionPerformed(ActionEvent arg0) {
-						Window wnd = SwingUtilities.getWindowAncestor(panel);
-						HotkeyDialog dialog = new HotkeyDialog(wnd);
-						KeyEvent event = dialog.getEvent();
-						if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
-							return;
-						Object[] options = { true, false };
-						String result = (String) UserInput.getInput(panel,
-								"Turn on", "Turn off");
-						parent.getGUIController().setHotkey(
-								event,
-								getGUIController().getRepeatListAction(
-										playListUUID).specialize(
-										result.equals("Turn on")));
-						wnd.toFront();
-					}
-
-				}));
-
-				break;
-			case SPEAKER:
-				description = "Set volume";
-				hotkeyMenu.add(new AddMenuItem(new AbstractAction(description) {
-					@Override
-					public void actionPerformed(ActionEvent arg0) {
-						Window wnd = SwingUtilities.getWindowAncestor(panel);
-						HotkeyDialog dialog = new HotkeyDialog(wnd);
-						KeyEvent event = dialog.getEvent();
-						if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
-							return;
-						Double result = UserInput
-								.getInput(panel, 0, 100, 1, getGUIController()
-										.getVolume(playListUUID) * 100);
-						float volume;
-						try {
-							volume = result.floatValue() / 100.0f;
-							volume = Math.max(volume, 0);
-							volume = Math.min(volume, 100);
-						} catch (NumberFormatException e) {
-							return;
-						}
-						parent.getGUIController().setHotkey(event,
-								volumeAction.specialize(volume));
-						wnd.toFront();
-					}
-
-				}));
+		hotkeyMenu.add(new TitledSeparator("Add hotkeys", false));
+		description = "Play";
+		hotkeyMenu.add(new AddMenuItem(new AbstractAction(description) {
+			@Override
+			public void actionPerformed(final ActionEvent arg0) {
+				Window wnd = SwingUtilities.getWindowAncestor(panel);
+				HotkeyDialog dialog = new HotkeyDialog(wnd);
+				KeyEvent event = dialog.getEvent();
+				if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
+					return;
+				parent.getGUIController().setHotkey(
+						playListUUID,
+						event,
+						getGUIController().getPlayPlayListAction(
+								playListUUID,
+								"Play '" + title + "'"));
+				wnd.toFront();
 			}
-		}
 
-		String[] split;
+		}));
+		description = "Stop";
+		hotkeyMenu.add(new AddMenuItem(new AbstractAction(description) {
+			@Override
+			public void actionPerformed(final ActionEvent arg0) {
+				Window wnd = SwingUtilities.getWindowAncestor(panel);
+				HotkeyDialog dialog = new HotkeyDialog(wnd);
+				KeyEvent event = dialog.getEvent();
+				if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
+					return;
+				parent.getGUIController().setHotkey(playListUUID, event,
+						getGUIController().getStopAction(playListUUID, "Stop '" + title + "'"));
+				wnd.toFront();
+			}
+
+		}));
+		description = "Set repeat";
+		hotkeyMenu.add(new AddMenuItem(new AbstractAction(description) {
+			@Override
+			public void actionPerformed(final ActionEvent arg0) {
+				Window wnd = SwingUtilities.getWindowAncestor(panel);
+				HotkeyDialog dialog = new HotkeyDialog(wnd);
+				KeyEvent event = dialog.getEvent();
+				if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
+					return;
+				Object[] options = { true, false };
+				String result = (String) UserInput.getInput(panel,
+						"Turn on", "Turn off");
+				parent.getGUIController().setHotkey(
+						playListUUID,
+						event,
+						getGUIController().getRepeatListAction(
+								playListUUID,
+								"Repeat '" + title + "'").specialize(
+										result + " repeating for '" + title + "'",
+										result.equals("Turn on")));
+				wnd.toFront();
+			}
+
+		}));
+
+		description = "Set volume";
+		hotkeyMenu.add(new AddMenuItem(new AbstractAction(description) {
+			@Override
+			public void actionPerformed(final ActionEvent arg0) {
+				Window wnd = SwingUtilities.getWindowAncestor(panel);
+				HotkeyDialog dialog = new HotkeyDialog(wnd);
+				KeyEvent event = dialog.getEvent();
+				if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
+					return;
+				Double result = UserInput
+						.getInput(panel, 0, 100, 1, getGUIController()
+								.getVolume(playListUUID) * 100);
+				float volume;
+				try {
+					volume = result.floatValue() / 100.0f;
+					volume = Math.max(volume, 0);
+					volume = Math.min(volume, 100);
+				} catch (NumberFormatException e) {
+					return;
+				}
+				parent.getGUIController().setHotkey(playListUUID,
+						event,
+						volumeAction.specialize("Set volume of '" + title + "' to " + (100*volume) + "%" ,volume));
+				wnd.toFront();
+			}
+		}));
+
 		String itemTitle;
 		List<JMenuItem> menuItemList = new LinkedList<JMenuItem>();
 		for (Tuple<String, Action> tuple : getGUIController().getHotkeys(
@@ -469,7 +540,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 		}
 
 		if (!menuItemList.isEmpty()) {
-			hotkeyMenu.add(new TitledSeparator("Remove hotkeys", hotkeyMenu.getItemCount() > 0));
+			hotkeyMenu.add(new TitledSeparator("Remove hotkeys", false));
 		}
 
 		for (JMenuItem item : menuItemList) {
@@ -484,47 +555,65 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 	}
 
 	@Override
-	public void mouseDragged(MouseEvent e) {
+	public void mouseDragged(final MouseEvent e) {
 		PlayListPanel panel = (PlayListPanel) e.getSource();
 		dragged = true;
 		if (!panel.draggingSpeaker)
 			return;
 		int degrees = panel.posToAngle(e.getPoint());
-		float percentage = (float) ((double) degrees / 360D);
-		if ((double) percentage < 0.25D && movedClockwise)
+		float percentage = (float) (degrees / 360D);
+		if (percentage < 0.25D && movedClockwise)
 			percentage = 1.0F;
-		else if ((double) percentage > 0.75D && !movedClockwise)
+		else if (percentage > 0.75D && !movedClockwise)
 			percentage = 0.0F;
 		else
 			movedClockwise = percentage > 0.5F;
-		setShowVolume(true);
-		updateVolume(percentage);
-		panel.repaint();
+
+			setShowVolume(true);
+			updateVolume(percentage);
+			panel.repaint();
 	}
 
 	@Override
-	public void mouseMoved(MouseEvent e) {
+	public void mouseMoved(final MouseEvent e) {
 		setShowVolume(false);
 		PlayListPanel panel = (PlayListPanel) e.getSource();
 		int index = posToIconIndex(e.getPoint());
 		if (index == -1) {
 			panel.setCursor(Cursor.getDefaultCursor());
 		} else {
-			panel.setCursor(Cursor.getPredefinedCursor(12));
+			panel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 			if (index == 4)
 				setShowVolume(true);
-			panel.repaint();
 		}
+		updateIcons();
+		panel.repaint();
+	}
+
+	private void updateIcons() {
+		Point p = panel.getMousePosition();
+		lastKnownIndex = posToIconIndex(p);
+
+		currentImageList = Arrays.copyOf(imageList, imageList.length);
+		if (lastKnownIndex > -1)
+			currentImageList[lastKnownIndex] = imageMouseOverList[lastKnownIndex];
+
+		for (int i = 0; i < imageList.length; i++)
+			if (activityList[i])
+				currentImageList[i] = imageActiveList[i];
+
+		setToolTips(lastKnownIndex);
+		panel.repaint();
 	}
 
 	@Override
-	public void mouseWheelMoved(MouseWheelEvent e) {
+	public void mouseWheelMoved(final MouseWheelEvent e) {
 		PlayListPanel panel = (PlayListPanel) e.getSource();
 		if (posToIconIndex(e.getPoint()) != 4) {
 			return;
 		} else {
 			float newVolume = lastKnownVolume;
-			newVolume += 0.02F * (float) e.getUnitsToScroll();
+			newVolume += 0.02F * e.getUnitsToScroll();
 			newVolume = Math.max(0.0F, newVolume);
 			newVolume = Math.min(1.0F, newVolume);
 			setShowVolume(true);
@@ -533,7 +622,7 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 		}
 	}
 
-	public void updateVolume(float volume) {
+	public void updateVolume(final float volume) {
 		lastKnownVolume = volume;
 		volumeAction.execute(volume);
 		setVolume(volume);
@@ -549,35 +638,87 @@ public class PlayListPanelBorder extends TitledBorder implements MouseListener,
 	}
 
 	@Override
-	public void propagateHotkey(KeyEvent event) {
+	public void propagateHotkey(final KeyEvent event) {
 		parent.propagateHotkey(event);
 	}
 
 	@Override
-	public void propagatePopupMenu(JPopupMenu menu, MouseEvent e) {
+	public void propagatePopupMenu(final JPopupMenu menu, final MouseEvent e) {
+		JCheckBoxMenuItem autoPlayItem = new JCheckBoxMenuItem(new AbstractAction("Autoplay", new ImageIcon(IconManager.getImage(IconType.PLAY))) {
+			@Override
+			public void actionPerformed(final ActionEvent arg0) {
+				getGUIController().setAutoplay(playListUUID, !getGUIController().getAutoplay(playListUUID));
+			}
+		});
+		autoPlayItem.setSelected(getGUIController().getAutoplay(playListUUID));
+		menu.add(autoPlayItem);
+
+		menu.addSeparator();
+
+		menu.add(new AbstractAction("Add file", new ImageIcon(IconManager.getImage(IconType.ADD))) {
+			@Override
+			public void actionPerformed(final ActionEvent e) {
+				getGUIController().addFiles(playListUUID);
+			}
+		});
+
+		menu.add(new AbstractAction("Add directory", new ImageIcon(IconManager.getImage(IconType.ADD))) {
+			@Override
+			public void actionPerformed(final ActionEvent e) {
+				getGUIController().addDirectory(playListUUID);
+			}
+		});
+
+		menu.addSeparator();
+
+		menu.add(new AbstractAction("Remove playlist", new ImageIcon(IconManager.getImage(IconType.REMOVE))) {
+			@Override
+			public void actionPerformed(final ActionEvent arg0) {
+				getGUIController().remove(playListUUID);
+			}
+		});
+
+		menu.add(new AbstractAction("Rename playlist") {
+			@Override
+			public void actionPerformed(final ActionEvent arg0) {
+				StringInputDialog dialog = new StringInputDialog(SwingUtilities.getWindowAncestor(panel), "Choose a new name for the playlist and press Enter", title);
+				dialog.setVisible(true);
+				String input = dialog.getTextInput();
+				getGUIController().setTitle(playListUUID, input);
+			}
+		});
+
+
+
 		parent.propagatePopupMenu(menu, e);
 	}
 
 	private void updateButtons() {
-		setActive(0, true);
-		setActive(1, true);
-		setActive(2, getGUIController().isRepeatList(playListUUID));
-		setActive(3, true);
-		setActive(4, true);
+		setActive(PLAY, getGUIController().getAutoplay(playListUUID));
+		setActive(STOP, false);
+		setActive(REPEAT, getGUIController().isRepeatList(playListUUID));
+		setActive(SETTINGS, showSettings);
+		setActive(SPEAKER, false);
 		setVolume(getGUIController().getVolume(playListUUID));
-		panel.repaint();
+		title = getGUIController().getTitle(playListUUID);
+		updateIcons();
 	}
 
 	@Override
-	public void contentsChanged(ListDataEvent arg0) {
+	public void contentsChanged(final ListDataEvent arg0) {
 		updateButtons();
 	}
 
 	@Override
-	public void intervalAdded(ListDataEvent arg0) {
+	public void intervalAdded(final ListDataEvent arg0) {
 	}
 
 	@Override
-	public void intervalRemoved(ListDataEvent arg0) {
+	public void intervalRemoved(final ListDataEvent arg0) {
+	}
+
+	@Override
+	public void updateMinimumSize() {
+		parent.updateMinimumSize();
 	}
 }

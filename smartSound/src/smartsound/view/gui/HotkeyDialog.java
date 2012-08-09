@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -28,31 +28,31 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 public class HotkeyDialog extends JDialog {
-	
+
 	private KeyEvent event = null;
-	
-	public HotkeyDialog(Window window) {
+
+	public HotkeyDialog(final Window window) {
 		super(window);
 		setModalityType(ModalityType.APPLICATION_MODAL);
 		setAlwaysOnTop(true);
 		setUndecorated(true);
-		
-		this.addKeyListener(new KeyListener() {
+
+		addKeyListener(new KeyListener() {
 
 			@Override
-			public void keyPressed(KeyEvent arg0) {}
+			public void keyPressed(final KeyEvent arg0) {}
 
 			@Override
-			public void keyReleased(KeyEvent event) {
+			public void keyReleased(final KeyEvent event) {
 				HotkeyDialog.this.event = event;
 				HotkeyDialog.this.setVisible(false);
 			}
 
 			@Override
-			public void keyTyped(KeyEvent arg0) {}
-			
+			public void keyTyped(final KeyEvent arg0) {}
+
 		});
-		
+
 		setSize(150, 75);
 		JLabel label = new JLabel("<html><p align=\"center\">Press hotkey or ESC to abort.</p></html>");
 		JPanel panel = new JPanel(new BorderLayout());
@@ -60,10 +60,10 @@ public class HotkeyDialog extends JDialog {
 		panel.add(label);
 		add(panel);
 		setLocation(window.getX() + window.getWidth() / 2 - getWidth() / 2, window.getY() + window.getHeight() / 2 - getHeight() / 2);
-		
+
 		setVisible(true);
 	}
-	
+
 	public KeyEvent getEvent() {
 		return event;
 	}

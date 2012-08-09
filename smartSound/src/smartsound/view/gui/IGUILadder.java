@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -26,4 +26,5 @@ public interface IGUILadder {
 	public GUIController getGUIController();
 	public void propagateHotkey(KeyEvent event);
 	public void propagatePopupMenu(JPopupMenu menu, MouseEvent e);
+	public void updateMinimumSize();
 }

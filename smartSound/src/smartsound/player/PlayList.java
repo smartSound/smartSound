@@ -1,5 +1,5 @@
-/* 
- *	Copyright (C) 2012 Andrï¿½ Becker
+/*
+ *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 package smartsound.player;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -30,61 +29,63 @@ import smartsound.plugins.player.ISound;
 /**
  * This class handles a play list. It does not only wraps the play list
  * entries, but also partly handles the determination of the entries' order.
- * @author Andrï¿½ Becker
+ * @author André Becker
  *
  */
-public class PlayList {
+public class PlayList extends PlayListSetElement {
 
-	private UUID playListUUID = UUID.randomUUID();
 	protected boolean repeatList = false;
 	protected boolean stopAfterEachSound = false;
 	protected boolean randomizeList = false;
-	private String name = "Playlist";
-	private PlayerControllerStatus status = PlayerControllerStatus.STOPPED;
-	private PlayerControllerSettings playerControllerSettings = new PlayerControllerSettings();
+	private static int nameCounter = 1;
+	private String name;
+	private final PlayerControllerSettings playerControllerSettings = new PlayerControllerSettings();
+	private float volume = 1.0f;
+	private float parentVolume;
 
-	private List<IPlayListObserver> observerList = new LinkedList<IPlayListObserver>();
-	private List<PlayListItem> itemList = new ArrayList<PlayListItem>();
+	private final List<PlayListItem> itemList = new ArrayList<PlayListItem>();
+	private boolean autoPlay = false;
 
 	public PlayList() {
+		super(UUID.randomUUID());
+		setName("Playlist " + nameCounter++);
 	}
-	
+
 	/**
 	 * Creates a <c>PlayList</c> from a <c>PropertyMap</c>.
 	 * @param map The <c>PropertyMap</c>.
 	 * @throws LoadingException If an error occurs during the creation of this
 	 * 	<c>PlayList</c> or of one of the embedded <c>PlayListItem</c>s.
 	 */
-	public PlayList(PropertyMap map) throws LoadingException {
+	public PlayList(final PropertyMap map) throws LoadingException {
+		super(map.getMapUUID());
 		if (!map.get("type").equals(getClass().getCanonicalName())) {
 			throw new LoadingException();
 		}
-		
-		playListUUID = map.getMapUUID();
-		
+
 		name = map.get("name");
 		repeatList = Boolean.parseBoolean(map.get("repeat"));
 		stopAfterEachSound = Boolean.parseBoolean(map.get("stop_after_each_sound"));
 		randomizeList = Boolean.parseBoolean(map.get("randomize"));
-		
+
 		playerControllerSettings.setFadeInLength(Integer.parseInt(map.get("fade_in_length")));
 		playerControllerSettings.setFadeOutLength(Integer.parseInt(map.get("fade_out_length")));
 		playerControllerSettings.setOverlapTime(Integer.parseInt(map.get("overlap_length")));
-		playerControllerSettings.setVolume(Float.parseFloat(map.get("max_volume")));
+		setVolume(Float.parseFloat(map.get("max_volume")));
 		playerControllerSettings.setRandomizeVolumeFrom(Float.parseFloat(map.get("volume_from")));
 		playerControllerSettings.setRandomizeVolumeTo(Float.parseFloat(map.get("volume_to")));
-		
+
 		for (PropertyMap pMap : map.getNestedMaps()) {
 			this.add(new PlayListItem(pMap));
 		}
-		
 	}
-	
+
 	/**
 	 * @return The <c>UUID</c> identifying this <c>PlayList</c>.
 	 */
+	@Override
 	public UUID getUUID() {
-		return playListUUID;
+		return super.getUUID();
 	}
 
 	/**
@@ -98,6 +99,7 @@ public class PlayList {
 	 * Either resumes a paused <c>PlayListItem</c> or plays the first entry in
 	 * the <c>PlayList</c>.
 	 */
+	@Override
 	public void play() {
 		stop();
 		for (PlayListItem entry : itemList) {
@@ -106,7 +108,7 @@ public class PlayList {
 				return;
 			}
 		}
-		
+
 		play(0);
 	}
 
@@ -114,13 +116,13 @@ public class PlayList {
 	 * Plays a specific <c>PlayListItem</c>.
 	 * @param index The <c>PlayListItem</c>'s index.
 	 */
-	public void play(int index) {
+	public void play(final int index) {
 		if (index < itemList.size()) {
 			play(itemList.get(index));
 		}
 	}
 
-	private void play(PlayListItem item) {
+	private void play(final PlayListItem item) {
 		stop();
 		item.play();
 	}
@@ -128,25 +130,23 @@ public class PlayList {
 	/**
 	 * Stops all playing <c>PlayListItem</c>s.
 	 */
+	@Override
 	public void stop() {
-		status = PlayerControllerStatus.STOPPING;
 		for (PlayListItem entry : itemList) {
 			entry.stop();
 		}
-		status = PlayerControllerStatus.STOPPED;
 		playListChanged();
 	}
 
 	/**
 	 * Pauses all playing <c>PlayListItem</c>s.
 	 */
+	@Override
 	public void pause() {
-		status = PlayerControllerStatus.PAUSING;
-		
+
 		for (PlayListItem entry : itemList) {
 			entry.pause();
 		}
-		status = PlayerControllerStatus.PAUSED;
 		playListChanged();
 	}
 
@@ -154,16 +154,23 @@ public class PlayList {
 	 * Sets the <c>PlayList</c>'s volume.
 	 * @param volume The volume as a value between 0 and 1.0.
 	 */
-	public void setVolume(float volume) {
-		playerControllerSettings.setVolume(volume);
+	@Override
+	public void setVolume(final float volume) {
+		this.volume = volume;
+		updateVolume();
+	}
+
+	private void updateVolume() {
+		playerControllerSettings.setVolume(volume * parentVolume);
 		playListChanged();
 	}
 
 	/**
 	 * @return The <c>PlayList</c>'s volume.
 	 */
+	@Override
 	public float getVolume() {
-		return playerControllerSettings.getVolume();
+		return volume;
 	}
 
 	/**
@@ -171,24 +178,24 @@ public class PlayList {
 	 * @param sound The <c>ISound</c>.
 	 * @param index The index.
 	 */
-	public void insert(ISound sound, int index) {
+	public void insert(final ISound sound, final int index) {
 		itemList.add(index, new PlayListItem(sound, playerControllerSettings, this));
 		playListChanged();
 	}
 
 	/**
 	 * Gets the time sounds are faded in.
-	 * @result The fade in time in milliseconds. 
-	 */	
+	 * @result The fade in time in milliseconds.
+	 */
 	public int getFadeInLength() {
 		return playerControllerSettings.getFadeInLength();
 	}
 
 	/**
 	 * Sets the time sounds are faded in.
-	 * @param fadeIn The fade in time in milliseconds. 
+	 * @param fadeIn The fade in time in milliseconds.
 	 */
-	public void setFadeInLength(int fadeIn) {
+	public void setFadeInLength(final int fadeIn) {
 		playerControllerSettings.setFadeInLength(fadeIn);
 		playListChanged();
 	}
@@ -205,7 +212,7 @@ public class PlayList {
 	 * Sets the time sounds are faded out.
 	 * @param fadeOut The fade out time in milliseconds.
 	 */
-	public void setFadeOutLength(int fadeOutLength) {
+	public void setFadeOutLength(final int fadeOutLength) {
 		playerControllerSettings.setFadeOutLength(fadeOutLength);
 		playListChanged();
 	}
@@ -226,13 +233,13 @@ public class PlayList {
 	 * with the first n milliseconds of the next one.
 	 * @param overlap The overlap time.
 	 */
-	public void setOverlapTime(int overlapTime) {
+	public void setOverlapTime(final int overlapTime) {
 		playerControllerSettings.setOverlapTime(overlapTime);
 		playListChanged();
 	}
 
 	/**
-	 * Returns if this <c>PlayList</c> is repeated. 
+	 * Returns if this <c>PlayList</c> is repeated.
 	 * @return <c>true</c> if the <c>PlayList</c> is repeated.
 	 */
 	public boolean isRepeatList() {
@@ -247,7 +254,7 @@ public class PlayList {
 	 * @param repeat If set to <c>true</c> the <c>PlayList</c> will be
 	 * 	repeated.
 	 */
-	public void setRepeatList(boolean repeatList) {
+	public void setRepeatList(final boolean repeatList) {
 		this.repeatList = repeatList;
 		playListChanged();
 	}
@@ -266,7 +273,7 @@ public class PlayList {
 	 * @param stopAfterEachSound If set to <c>true</c> the <c>PlayList</c>
 	 * 	stops after each played entry.
 	 */
-	public void setStopAfterEachSound(boolean stopAfterEachSound) {
+	public void setStopAfterEachSound(final boolean stopAfterEachSound) {
 		this.stopAfterEachSound = stopAfterEachSound;
 		playListChanged();
 	}
@@ -285,36 +292,15 @@ public class PlayList {
 	 * Sets randomization for a specific <c>PlayList</c>.
 	 * @param randomize If <c>true</c> the <c>PlayList</c> is randomized.
 	 */
-	public void setRandomizeList(boolean randomizeList) {
+	public void setRandomizeList(final boolean randomizeList) {
 		this.randomizeList = randomizeList;
 		playListChanged();
 	}
 
 	void playListChanged() {
-		for (IPlayListObserver obs : observerList) {
-			obs.playListChanged(playListUUID);
-		}
+		update();
 	}
-	
-	/**
-	 * Adds an observer to this <c>PlayList</c> which will be notified by
-	 * each change.
-	 * @param observer The observer.
-	 */
-	public void addObserver(IPlayListObserver observer) {
-		if (!observerList.contains(observer)) {
-			observerList.add(observer);
-		}
-	}
-	
-	/**
-	 * Removes a subscribed observer.
-	 * @param observer The observer.
-	 */
-	public void removeObserver(IPlayListObserver observer) {
-		observerList.remove(observer);
-	}
-	
+
 	/**
 	 * Returns the next <c>PlayistItem</c> to be played, based on the
 	 * <c>UUID</c> of the current one.
@@ -323,20 +309,20 @@ public class PlayList {
 	 * @return The next <c>PlayListItem</c> or <c>null</c> if the end of the
 	 * 	list has been reached and <c>isRepeatList()</c> is <c>false</c>.
 	 */
-	PlayListItem getNextEntry(UUID current) {
+	PlayListItem getNextEntry(final UUID current) {
 		PlayListItem currentEntry = getEntry(current);
-		
+
 		if (currentEntry == null) {
 			return null;
 		}
-		
+
 		PlayListItem nextItem = null;
-		
+
 		if (stopAfterEachSound) {
 			nextItem = null;
 		} else if (randomizeList) {
 			Random rnd = new Random();
-			
+
 			int i = rnd.nextInt(itemList.size());
 			int j = itemList.indexOf(currentEntry);
 			while (itemList.size() > 1 && i == j) {
@@ -363,7 +349,7 @@ public class PlayList {
 	 * @param sound The <c>ISound</c>.
 	 * @return The new <c>IPlayer</c> instance
 	 */
-	IPlayer getPlayer(ISound sound) {
+	IPlayer getPlayer(final ISound sound) {
 		return SoundEngineSingleton.getInstance().getPlayer2D(sound);
 	}
 
@@ -372,27 +358,27 @@ public class PlayList {
 	 * @param uuid The <c>UUID</c> identifying the <c>PlayListItem</c>.
 	 * @return
 	 */
-	public PlayListItem getEntry(UUID uuid) {
-		
+	public PlayListItem getEntry(final UUID uuid) {
+
 		for (PlayListItem entry : itemList) {
 			if (entry.getUUID().equals(uuid)) {
 				return entry;
 			}
 		}
-		
+
 		return null;
 	}
-	
+
 	/**
 	 * Returns the <c>PlayListItem</c> object at a given index.
 	 * @param index The <c>PlayListItem</c>'s index.
 	 * @return The <c>PlayListItem</c>.
 	 */
-	public PlayListItem getEntryAt(int index) {
+	public PlayListItem getEntryAt(final int index) {
 		return itemList.get(index);
 	}
 
-	private void remove(PlayListItem item, boolean stop, boolean removeChaining) {
+	private void remove(final PlayListItem item, final boolean stop, final boolean removeChaining) {
 
 		if (removeChaining) {
 			for (PlayListItem pItem : itemList) {
@@ -402,11 +388,11 @@ public class PlayList {
 			}
 		}
 		itemList.remove(item);
-		
+
 		if (stop) {
 			item.stop();
 		}
-		
+
 		item.setParent(null);
 		playListChanged();
 	}
@@ -417,10 +403,10 @@ public class PlayList {
 	 * @param stop If set to <c>true</c> the <c>PlayListItem</c> will be
 	 * 	stopped in case it is currently played.
 	 */
-	public void remove(UUID itemUUID, boolean stop) {
+	public void remove(final UUID itemUUID, final boolean stop) {
 		remove(itemUUID, stop, true);
 	}
-	
+
 	/**
 	 * Removes the <c>PlayListItem</c> with a given <c>UUID</c>.
 	 * @param itemUUID The <c>UUID</c> identifying the <c>PlayListItem</c>.
@@ -429,17 +415,17 @@ public class PlayList {
 	 * @param removeChaining If set to <c>true</c> all links to the
 	 * 	<c>PlayListItem</c> will be removed.
 	 */
-	public void remove(UUID itemUUID, boolean stop, boolean removeChaining) {
+	public void remove(final UUID itemUUID, final boolean stop, final boolean removeChaining) {
 		remove(getPlayListItem(itemUUID), stop, removeChaining);
 	}
-	
+
 	/**
 	 * Removes the <c>PlayListItem</c> at a given index.
 	 * @param index The <c>PlayListItem</c>'s index.
 	 * @param stop If set to <c>true</c> the <c>PlayListItem</c> will be
 	 * 	stopped in case it is currently played.
 	 */
-	public void remove(int index, boolean stop) {
+	public void remove(final int index, final boolean stop) {
 		remove(itemList.get(index), stop, true);
 	}
 
@@ -448,18 +434,18 @@ public class PlayList {
 	 * @param index The index.
 	 * @param item The <c>PlayListItem</c>.
 	 */
-	public void add(int index, PlayListItem item) {
+	public void add(final int index, final PlayListItem item) {
 		item.setParent(this);
 		item.setSettings(playerControllerSettings);
 		itemList.add(index, item);
 		playListChanged();
 	}
-	
+
 	/**
 	 * Adds a <c>PlayListItem</c> to the end of the <c>PlayList</c>.
 	 * @param item The <c>PlayListItem</c>.
 	 */
-	public void add(PlayListItem item) {
+	public void add(final PlayListItem item) {
 		item.setParent(this);
 		item.setSettings(playerControllerSettings);
 		itemList.add(item);
@@ -472,7 +458,7 @@ public class PlayList {
 	 * @param uuid The <c>UUID</c> identifying the <c>PlayListItem</c>.
 	 * @return The index.
 	 */
-	public int getEntryIndex(UUID uuid) {
+	public int getEntryIndex(final UUID uuid) {
 		int i = 0;
 		for (PlayListItem entry : itemList) {
 			if (entry.getUUID().equals(uuid)) {
@@ -488,7 +474,7 @@ public class PlayList {
 	 * @param index  The index.
 	 * @return The <c>UUID</c> identifying the <c>PlayListItem</c>.
 	 */
-	public UUID UUIDfromIndex(int index) {
+	public UUID UUIDfromIndex(final int index) {
 		if (index >= itemList.size()) {
 			return null;
 		}
@@ -501,7 +487,7 @@ public class PlayList {
 	 * @param index The index.
 	 * @param filePath The file path.
 	 */
-	public void add(int index, String filePath) {
+	public void add(final int index, final String filePath) {
 		this.itemList.add(index, new PlayListItem(new FilePathSound(filePath), playerControllerSettings, this));
 		playListChanged();
 	}
@@ -511,10 +497,11 @@ public class PlayList {
 	 * created from a given file path.
 	 * @param filePath The file path.
 	 */
-	public void add(String filePath) {
+	public void add(final String filePath) {
 		this.itemList.add(new PlayListItem(new FilePathSound(filePath), playerControllerSettings, this));
+		playListChanged();
 	}
-	
+
 	/**
 	 * Returns the <c>PlayListItem</c> object identified by a given
 	 * <c>UUID</c>.
@@ -522,7 +509,7 @@ public class PlayList {
 	 * @return The <c>PlayListItem</c> or <c>null</c> if no item exists for
 	 * 	this <c>UUID</c>.
 	 */
-	public PlayListItem getPlayListItem(UUID itemUUID) {
+	public PlayListItem getPlayListItem(final UUID itemUUID) {
 		for (PlayListItem item : itemList) {
 			if (item.getUUID().equals(itemUUID)) {
 				return item;
@@ -537,7 +524,7 @@ public class PlayList {
 	 * @return <c>true</c> if the given item ist repeated, <c>false</c>
 	 * 	otherwise.
 	 */
-	public boolean itemIsRepeating(UUID itemUUID) {
+	public boolean itemIsRepeating(final UUID itemUUID) {
 		PlayListItem item = getEntry(itemUUID);
 		if (item == null) {
 			//TODO: Throw Exception
@@ -551,7 +538,7 @@ public class PlayList {
 	 * @param itemUUID The <c>UUID</c> identifying the <c>PlayListItem</c>.
 	 * @return The textual representation for the item.
 	 */
-	public String getItemName(UUID itemUUID) {
+	public String getItemName(final UUID itemUUID) {
 		PlayListItem item = getEntry(itemUUID);
 		if (item == null) {
 			//TODO: Throw Exception
@@ -566,7 +553,7 @@ public class PlayList {
 	 * @return The other item's <c>UUID</c> or <c>null</c> if no chaining
 	 * 	exists.
 	 */
-	public UUID getItemChainWith(UUID itemUUID) {
+	public UUID getItemChainWith(final UUID itemUUID) {
 		PlayListItem item = getEntry(itemUUID);
 		if (item == null) {
 			//TODO: Throw Exception
@@ -581,7 +568,7 @@ public class PlayList {
 	 * @param chainWith The <c>UUID</c> of the item to be chained with or
 	 * <c>null</c> to disable chaining.
 	 */
-	public void setItemChainWith(UUID itemUUID, UUID chainWith) {
+	public void setItemChainWith(final UUID itemUUID, final UUID chainWith) {
 		PlayListItem item = getEntry(itemUUID);
 		if (item == null) {
 			//TODO: Throw Exception
@@ -596,7 +583,7 @@ public class PlayList {
 	 * @param itemUUID The item's <c>UUID</c>.
 	 * @return <c>false</c> if the item is stopped - <c>true</c> otherwise.
 	 */
-	public boolean itemIsActive(UUID itemUUID) {
+	public boolean itemIsActive(final UUID itemUUID) {
 		PlayListItem item = getEntry(itemUUID);
 		if (item == null) {
 			//TODO: Throw Exception
@@ -610,7 +597,7 @@ public class PlayList {
 	 * @param itemUUID The <c>UUID</c> identifying the item.
 	 * @param isRepeating Set to <c>true</c> to repeat the item.
 	 */
-	public void setItemIsRepeating(UUID itemUUID, boolean isRepeating) {
+	public void setItemIsRepeating(final UUID itemUUID, final boolean isRepeating) {
 		PlayListItem item = getEntry(itemUUID);
 		if (item == null) {
 			//TODO: Throw Exception
@@ -625,7 +612,7 @@ public class PlayList {
 	 * [<c>randomizeVolumeFrom</c>, <c>randomizeVolumeTo</c>].
 	 * @param from The minimum volume in the range from 0 to 1.0.
 	 */
-	public void setRandomizeVolumeFrom(float from) {
+	public void setRandomizeVolumeFrom(final float from) {
 		playerControllerSettings.setRandomizeVolumeFrom(from);
 		playListChanged();
 	}
@@ -636,7 +623,7 @@ public class PlayList {
 	 * [<c>randomizeVolumeFrom</c>, <c>randomizeVolumeTo</c>].
 	 * @param to The maximum volume in the range from 0 to 1.0.
 	 */
-	public void setRandomizeVolumeTo(float to) {
+	public void setRandomizeVolumeTo(final float to) {
 		playerControllerSettings.setRandomizeVolumeTo(to);
 		playListChanged();
 	}
@@ -660,14 +647,15 @@ public class PlayList {
 	public float getRandomizeVolumeTo() {
 		return playerControllerSettings.getRandomizeVolumeTo();
 	}
-	
+
 	/**
 	 * @return A <c>PropertyMap</c> containing information for restoring this
 	 * 	<c>PlayList</c> and all embedded objects.
 	 */
+	@Override
 	public PropertyMap getPropertyMap() {
-		PropertyMap map = new PropertyMap(playListUUID);
-		
+		PropertyMap map = new PropertyMap(getUUID());
+
 		map.put("type", getClass().getCanonicalName());
 		map.put("name", name);
 		map.put("repeat", String.valueOf(repeatList));
@@ -679,10 +667,67 @@ public class PlayList {
 		map.put("max_volume", String.valueOf(playerControllerSettings.getVolume()));
 		map.put("volume_from", String.valueOf(playerControllerSettings.getRandomizeVolumeFrom()));
 		map.put("volume_to", String.valueOf(playerControllerSettings.getRandomizeVolumeTo()));
-		
+
 		for (PlayListItem item : itemList) {
 			map.addPropertyMap(item.getPropertyMap());
 		}
 		return map;
+	}
+
+	@Override
+	public void setParentVolume(final float volume) {
+		parentVolume = volume;
+		updateVolume();
+	}
+
+	@Override
+	public boolean getAutoPlay() {
+		return autoPlay ;
+	}
+
+	@Override
+	public void setAutoPlay(final boolean autoPlay) {
+		this.autoPlay = autoPlay;
+		playListChanged();
+	}
+
+	@Override
+	public String getName() {
+		return name;
+	}
+
+	@Override
+	public void setName(final String name) {
+		this.name = name;
+		playListChanged();
+	}
+
+	@Override
+	public PlayListSet getPlayListSet(final UUID playListSetUUID) {
+		return null;
+	}
+
+	@Override
+	public UUID getParent(final UUID child) {
+		return null;
+	}
+
+	@Override
+	public void remove(final UUID uuid) {
+		remove(uuid, true);
+	}
+
+	@Override
+	public boolean isActive() {
+		for (PlayListItem item : itemList) {
+			if (item.isActive())
+				return true;
+		}
+		return false;
+	}
+
+	@Override
+	public void dispose() {
+		removeAllObservers();
 	}
 }

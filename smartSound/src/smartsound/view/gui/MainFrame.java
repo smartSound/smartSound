@@ -1,5 +1,5 @@
-/* 
- *	Copyright (C) 2012 Andrï¿½ Becker
+/*
+ *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,28 +25,28 @@ import javax.swing.JFrame;
 import javax.swing.JPopupMenu;
 
 public class MainFrame extends JFrame implements IGUILadder {
-	
-	private GUIController controller;
-	
-	public MainFrame(GUIController controller) {
+
+	private final GUIController controller;
+
+	public MainFrame(final GUIController controller) {
 		this.controller = controller;
-		
-		this.addKeyListener(new KeyListener() {
+
+		addKeyListener(new KeyListener() {
 
 			@Override
-			public void keyPressed(KeyEvent arg0) {
+			public void keyPressed(final KeyEvent arg0) {
 			}
 
 			@Override
-			public void keyReleased(KeyEvent arg0) {
+			public void keyReleased(final KeyEvent arg0) {
 				propagateHotkey(arg0);
 			}
 
 			@Override
-			public void keyTyped(KeyEvent arg0) {
-				
+			public void keyTyped(final KeyEvent arg0) {
+
 			}
-			
+
 		});
 	}
 
@@ -56,15 +56,22 @@ public class MainFrame extends JFrame implements IGUILadder {
 	}
 
 	@Override
-	public void propagateHotkey(KeyEvent event) {
+	public void propagateHotkey(final KeyEvent event) {
 		controller.executeHotkey(event);
 	}
 
 	@Override
-	public void propagatePopupMenu(JPopupMenu menu, MouseEvent e) {
-		// TODO Auto-generated method stub
-		
+	public void propagatePopupMenu(final JPopupMenu menu, final MouseEvent e) {
+		controller.propagatePopupMenu(menu, e);
 	}
-	
-	
+
+	@Override
+	public void updateMinimumSize() {
+		setMinimumSize(getComponent(0).getMinimumSize());
+		if (!getSize().equals(getMinimumSize()))
+			setSize(getMinimumSize());
+
+		System.out.println("Updating minimum size to " + getMinimumSize());
+	}
+
 }

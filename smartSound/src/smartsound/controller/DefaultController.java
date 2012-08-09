@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -23,12 +23,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import smartsound.common.IObserver;
+import smartsound.common.Observable;
 import smartsound.common.PropertyMap;
-import smartsound.player.IPlayListObserver;
 import smartsound.player.ItemData;
 import smartsound.player.LoadingException;
 import smartsound.player.PlayList;
 import smartsound.player.PlayListItem;
+import smartsound.player.PlayListSet;
+import smartsound.player.PlayListSetElement;
 import smartsound.view.AbstractViewController;
 import smartsound.view.ViewController;
 import smartsound.view.gui.GUIController;
@@ -41,12 +44,11 @@ import smartsound.view.gui.GUIController;
  */
 public class DefaultController extends AbstractController {
 
-	private Map<UUID, List<IPlayListObserver>> observerMap = new HashMap<UUID, List<IPlayListObserver>>();
-	private Map<UUID, PlayList> playListMap = new HashMap<UUID, PlayList>();
-	private UUID controllerUUID = UUID.randomUUID();
-	private List<UUID> playListUUIDs = new LinkedList<UUID>();
-	private AbstractViewController viewController;
-	
+	private final UUID controllerUUID = UUID.randomUUID();
+	private final AbstractViewController viewController;
+	private final Map<UUID, PlayListSet> rootPlayListSets = new HashMap<UUID, PlayListSet>();
+	private UUID activeSet = null;
+
 	/**
 	 * 
 	 * @param parent The <c>JFrame</c> to which the controller adds its view
@@ -55,20 +57,26 @@ public class DefaultController extends AbstractController {
 	public DefaultController() {
 		viewController = new ViewController(this);
 		viewController.addGUI(new GUIController(viewController));
-		addPlayList();
-	}
-	
-	@Override
-	public void addObserver(IPlayListObserver observer, UUID playListUUID) {
-		if (observerMap.get(playListUUID) == null) {
-			observerMap.put(playListUUID, new LinkedList<IPlayListObserver>());
-		}
-		observerMap.get(playListUUID).add(observer);
+		UUID set = addPlayListSet(null);
+		setActive(set);
 	}
 
 	@Override
-	public ItemData getItemData(UUID playListUUID, int index) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void addObserver(final IObserver observer, final UUID uuid) {
+		if (uuid == null) {
+			addObserver(observer);
+			return;
+		}
+		PlayListSetElement element = getElement(uuid);
+		if (element instanceof Observable) {
+			((Observable) element).addObserver(observer);
+		}
+	}
+
+	@Override
+	public ItemData getItemData(final UUID playListUUID, final int index) {
+		PlayList playList = getPlayList(playListUUID);
+
 		if (playList == null) {
 			//TODO: Exception
 			return null;
@@ -76,9 +84,34 @@ public class DefaultController extends AbstractController {
 		return new ItemData(this, playListUUID, playList.UUIDfromIndex(index));
 	}
 
+	private PlayList getPlayList(final UUID playListUUID) {
+		PlayList playList = null;
+
+		for (PlayListSet set : rootPlayListSets.values()) {
+			playList = set.getPlayList(playListUUID);
+			if (playList != null)
+				break;
+		}
+
+		return playList;
+	}
+
+	private PlayListSet getPlayListSet(final UUID playListSetUUID) {
+		PlayListSet set = rootPlayListSets.get(playListSetUUID);
+
+		if (set == null)
+			for (PlayListSet s : rootPlayListSets.values()) {
+				set = s.getPlayListSet(playListSetUUID);
+				if (set != null)
+					break;
+			}
+
+		return set;
+	}
+
 	@Override
-	public int getSize(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public int getSize(final UUID playListUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return -1;
@@ -87,8 +120,13 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void addItem(UUID playListUUID, int index, String filePath) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void addItem(final UUID playListUUID, final int index, final String filePath) {
+		if (index == -1) {
+			addItem(playListUUID, filePath);
+			return;
+		}
+
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -97,8 +135,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void addItem(UUID playListUUID, String filePath) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void addItem(final UUID playListUUID, final String filePath) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -107,8 +145,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void removeItem(UUID playListUUID, int index, boolean stop) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void removeItem(final UUID playListUUID, final int index, final boolean stop) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -117,28 +155,31 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void play(UUID playListUUID, int index) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void play(final UUID playListUUID, final int index) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
 		}
 		playList.play(index);
+
+		setActive(getRootParent(playListUUID));
+		stopOthers(playListUUID);
 	}
 
 	@Override
-	public void play(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.play();
+	public void play(final UUID playListUUID) {
+		PlayListSetElement element = getPlayList(playListUUID);
+		element = (element != null) ? element : getPlayListSet(playListUUID);
+		element.play();
+
+		stopOthers(playListUUID);
+		setActive(getRootParent(playListUUID));
 	}
 
 	@Override
-	public int getItemIndex(UUID playListUUID, UUID itemUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public int getItemIndex(final UUID playListUUID, final UUID itemUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return -1;
@@ -146,62 +187,89 @@ public class DefaultController extends AbstractController {
 		return playList.getEntryIndex(itemUUID);
 	}
 
-	@Override
-	public void stop(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
+	private void stopOthers(final UUID uuid) {
+		UUID rootParent = getRootParent(uuid);
+
+		for (PlayListSet set : rootPlayListSets.values()) {
+			if (!set.getUUID().equals(rootParent))
+				set.stop();
 		}
-		
-		playList.stop();
 	}
 
 	@Override
-	public UUID addPlayList() {
+	public UUID getRootParent(final UUID uuid) {
+		UUID current = uuid;
+		UUID parent = getParent(uuid);
+		while (parent != null) {
+			current = parent;
+			parent = getParent(current);
+		}
+		return current;
+	}
+
+	@Override
+	public void stop(final UUID playListUUID) {
+		PlayListSetElement element = getElement(playListUUID);
+		if (element != null)
+			element.stop();
+	}
+
+	private PlayListSetElement getElement(final UUID uuid) {
+		PlayListSetElement element = getPlayList(uuid);
+		return element != null ? element : getPlayListSet(uuid);
+	}
+	@Override
+	public UUID addPlayList(final UUID parentSet) {
+		if (getPlayListSet(parentSet) == null)
+			return null;
+
 		PlayList playList = new PlayList();
-		addPlayList(playList);
-		
+		addPlayList(parentSet, playList);
+
 		return playList.getUUID();
 	}
-	
-	private void addPlayList(PlayList playList) {
-		this.playListMap.put(playList.getUUID(), playList);
-		playListUUIDs.add(playList.getUUID());
+
+	private void addPlayList(final UUID parentSet, final PlayList playList) {
+		PlayListSet set = getPlayListSet(parentSet);
+		if (set == null)
+			return;
+
+		set.addPlayList(playList);
+
 		playList.addObserver(this);
-		newPlayList(playList.getUUID());
+		//newPlayList(playList.getUUID());
 	}
 
 	@Override
-	public void deletePlayList(UUID playListUUID) {
+	public void deletePlayList(final UUID playListUUID) {
 		// TODO Auto-generated method stub
 
 	}
 
 	@Override
-	public void importItems(UUID sourcePlayListUUID, List<UUID> itemUUIDs,
-			UUID targetPlayListUUID, int targetIndex, boolean copy) {
+	public void importItems(final UUID sourcePlayListUUID, final List<UUID> itemUUIDs,
+			final UUID targetPlayListUUID, final int targetIndex, final boolean copy) {
 		Map<UUID, UUID> uuidMap = new HashMap<UUID, UUID>();
-		PlayList sourcePlayList = playListMap.get(sourcePlayListUUID);
-		PlayList targetPlayList = playListMap.get(targetPlayListUUID);
+		PlayList sourcePlayList = getPlayList(sourcePlayListUUID);
+		PlayList targetPlayList = getPlayList(targetPlayListUUID);
 		if (sourcePlayList == null || targetPlayList == null) {
 			//TODO: Exception
 			return;
 		}
-		
+
 		int i;
 		if (targetIndex > -1) {
 			i = targetIndex;
 		} else {
 			i = targetPlayList.getSize();
 		}
-		
+
 		int shift = 0;
 		List<PlayListItem> playListItemList = new LinkedList<PlayListItem>();
 		for (UUID uuid: itemUUIDs) {
 			playListItemList.add(sourcePlayList.getPlayListItem(uuid));
 		}
-		
+
 		if (sourcePlayList == targetPlayList) {
 			for (UUID uuid: itemUUIDs) {
 				if (sourcePlayList.getEntryIndex(uuid) <= i) {
@@ -209,14 +277,12 @@ public class DefaultController extends AbstractController {
 				}
 			}
 		}
-		
+
 		PlayListItem playListItem;
-		
-		
-		
+
 		boolean removeChaining = sourcePlayList != targetPlayList;
 		if (!copy) {
-			
+
 			for (UUID itemUUID : itemUUIDs) {
 				sourcePlayList.remove(itemUUID, false, removeChaining);
 			}
@@ -228,34 +294,23 @@ public class DefaultController extends AbstractController {
 					}
 				}
 			}
-			
+
 		}
-		
+
 		PlayListItem newPlayListItem;
 		for (PlayListItem item : playListItemList) {
-			newPlayListItem = new  PlayListItem(item, !copy);
+			newPlayListItem = new PlayListItem(item, !copy);
 			targetPlayList.add(i++ - shift, newPlayListItem);
 			if (!copy) {
 				uuidMap.put(item.getUUID(), newPlayListItem.getUUID());
+				item.dispose();
 			}
 		}
-		
 	}
 
 	@Override
-	public void playListChanged(UUID playListUUID) {
-		List<IPlayListObserver> observers = observerMap.get(playListUUID);
-		if (observers == null) {
-			return;
-		}
-		for (IPlayListObserver observer : observers) {
-			observer.playListChanged(playListUUID);
-		}
-	}
-
-	@Override
-	public boolean itemIsActive(UUID playListUUID, UUID itemUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public boolean itemIsActive(final UUID playListUUID, final UUID itemUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return false;
@@ -264,8 +319,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public String getItemName(UUID playListUUID, UUID itemUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public String getItemName(final UUID playListUUID, final UUID itemUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return null;
@@ -274,8 +329,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public UUID getItemChainWith(UUID playListUUID, UUID itemUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public UUID getItemChainWith(final UUID playListUUID, final UUID itemUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return null;
@@ -284,9 +339,9 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setItemChainWith(UUID playListUUID, UUID itemUUID,
-			UUID chainWith) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setItemChainWith(final UUID playListUUID, final UUID itemUUID,
+			final UUID chainWith) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -295,8 +350,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public boolean itemIsRepeating(UUID playListUUID, UUID itemUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public boolean itemIsRepeating(final UUID playListUUID, final UUID itemUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return false;
@@ -305,9 +360,9 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setItemIsRepeating(UUID playListUUID, UUID itemUUID,
-			boolean isRepeating) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setItemIsRepeating(final UUID playListUUID, final UUID itemUUID,
+			final boolean isRepeating) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -316,8 +371,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public boolean isRepeatList(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public boolean isRepeatList(final UUID playListUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return false;
@@ -326,8 +381,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setRepeatList(UUID playListUUID, boolean repeat) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setRepeatList(final UUID playListUUID, final boolean repeat) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -336,8 +391,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public boolean isRandomizeList(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public boolean isRandomizeList(final UUID playListUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return false;
@@ -346,19 +401,19 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setRandomizeList(UUID playListUUID, boolean randomize) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setRandomizeList(final UUID playListUUID, final boolean randomize) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
 		}
 		playList.setRandomizeList(randomize);
-		
+
 	}
 
 	@Override
-	public void setRandomizeVolumeFrom(UUID playListUUID, float from) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setRandomizeVolumeFrom(final UUID playListUUID, final float from) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -367,8 +422,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setRandomizeVolumeTo(UUID playListUUID, float to) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setRandomizeVolumeTo(final UUID playListUUID, final float to) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -377,9 +432,9 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setStopAfterEachSound(UUID playListUUID,
-			boolean stopAfterEachSound) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setStopAfterEachSound(final UUID playListUUID,
+			final boolean stopAfterEachSound) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -388,8 +443,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setFadeIn(UUID playListUUID, int fadeIn) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setFadeIn(final UUID playListUUID, final int fadeIn) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -398,8 +453,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setFadeOut(UUID playListUUID, int fadeOut) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setFadeOut(final UUID playListUUID, final int fadeOut) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -408,8 +463,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setOverlap(UUID playListUUID, int overlap) {
-		PlayList playList = playListMap.get(playListUUID);
+	public void setOverlap(final UUID playListUUID, final int overlap) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return;
@@ -418,8 +473,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public boolean isStopAfterEachSound(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public boolean isStopAfterEachSound(final UUID playListUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return false;
@@ -428,8 +483,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public float getRandomizeVolumeFrom(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public float getRandomizeVolumeFrom(final UUID playListUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return -1;
@@ -438,8 +493,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public float getRandomizeVolumeTo(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public float getRandomizeVolumeTo(final UUID playListUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return -1;
@@ -448,8 +503,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public int getFadeIn(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public int getFadeIn(final UUID playListUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return -1;
@@ -458,8 +513,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public int getFadeOut(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public int getFadeOut(final UUID playListUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return -1;
@@ -468,8 +523,8 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public int getOverlap(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
+	public int getOverlap(final UUID playListUUID) {
+		PlayList playList = getPlayList(playListUUID);
 		if (playList == null) {
 			//TODO: Exception
 			return -1;
@@ -478,75 +533,218 @@ public class DefaultController extends AbstractController {
 	}
 
 	@Override
-	public void setVolume(UUID playListUUID, float volume) {
-		PlayList playList = playListMap.get(playListUUID);
-		if (playList == null) {
+	public void setVolume(final UUID playListUUID, final float volume) {
+		PlayListSetElement element = getElement(playListUUID);
+		if (element == null) {
 			//TODO: Exception
 			return;
 		}
-		playList.setVolume(volume);
+		element.setVolume(volume);
 	}
 
 	@Override
-	public float getVolume(UUID playListUUID) {
-		PlayList playList = playListMap.get(playListUUID);
-		if (playList == null) {
+	public float getVolume(final UUID playListUUID) {
+		PlayListSetElement element = getElement(playListUUID);
+		if (element == null) {
 			//TODO: Exception
 			return -1;
 		}
-		return playList.getVolume();
+		return element.getVolume();
 	}
 
 	@Override
-	public void save(String savePath) {
+	public void save(final String savePath) {
 		PropertyMap map = new PropertyMap(controllerUUID);
-		
-		for (PlayList list : playListMap.values()) {
-			map.addPropertyMap(list.getPropertyMap());
+
+		for (PlayListSet set : rootPlayListSets.values()) {
+			map.addPropertyMap(set.getPropertyMap());
 		}
-		
+
 		map.addPropertyMap(viewController.getPropertyMap());
-		
+
 		map.saveToIni(savePath);
 	}
 
 	@Override
-	public void load(String loadPath) {
-		PropertyMap map = new PropertyMap(loadPath);
-		
-		for (PlayList list : playListMap.values()) {
-			remove(list.getUUID());
-			list.stop();
+	public void load(final String loadPath) {
+
+		for (PlayListSet set : rootPlayListSets.values()) {
+			set.stop();
+			set.dispose();
 		}
-		playListMap.clear();
-		
-		
+		rootPlayListSets.clear();
+
+
+		PropertyMap map = new PropertyMap(loadPath);
+		PlayListSet set;
+		boolean firstSet = true;
 		try {
 			for (PropertyMap pMap : map.getNestedMaps()) {
-				if (pMap.get("type").equals(PlayList.class.getCanonicalName())) {
-					addPlayList(new PlayList(pMap));
+				if (pMap.get("type").equals(PlayListSet.class.getCanonicalName())) {
+					set = new PlayListSet(pMap);
+					addPlayListSet(null, set);
+					if (firstSet) {
+						firstSet = false;
+						activeSet = set.getUUID();
+					}
 				} else if (pMap.get("type").equals(ViewController.class.getCanonicalName())) {
-						viewController.loadFromPropertyMap(pMap);
+					viewController.loadFromPropertyMap(pMap);
 				}
 			}
 		} catch (LoadingException e) {
 			e.printStackTrace();
 		}
-		
-		
+
+		viewController.reloadView();
 	}
 
 	@Override
-	public List<UUID> getPlayListUUIDs() {
-		return new LinkedList<UUID>(playListUUIDs);
+	public List<UUID> getPlayListUUIDs(final UUID parentSetUUID) {
+		List<UUID> result = new LinkedList<UUID>();
+		PlayListSet set = getPlayListSet(parentSetUUID);
+
+		if (set == null)
+			return null;
+
+		for (PlayList pList : set.getNestedPlayLists()) {
+			result.add(pList.getUUID());
+		}
+
+		return result;
 	}
-	
-	private void remove(UUID playListUUID) {
-		viewController.removePlayList(playListUUID);
+
+	@Override
+	public List<UUID> getPlayListSetUUIDs(final UUID parentSetUUID) {
+		if (parentSetUUID == null) {
+			return new LinkedList<UUID>(rootPlayListSets.keySet());
+		}
+		PlayListSet set = rootPlayListSets.get(parentSetUUID);
+		List<PlayListSet> currentList = new LinkedList<PlayListSet>(rootPlayListSets.values());
+		List<PlayListSet> nextList = new LinkedList<PlayListSet>();
+		while (set == null) {
+			if (currentList.isEmpty()) {
+				break;
+			}
+			for (PlayListSet currentSet : currentList) {
+				if (currentSet.getUUID().equals(parentSetUUID)) {
+					set = currentSet;
+					break;
+				}
+				nextList.add(currentSet);
+			}
+			currentList = new LinkedList<PlayListSet>(nextList);
+		}
+
+		if (set == null)
+			return null;
+
+		List<UUID> result = new LinkedList<UUID>();
+		for (PlayListSet list : set.getNestedSets()) {
+			result.add(list.getUUID());
+		}
+		return result;
 	}
-	
-	private void newPlayList(UUID playListUUID) {
-		viewController.newPlayList(playListUUID);
+
+	@Override
+	public String getTitle(final UUID uuid) {
+		PlayListSetElement elem = getPlayListSet(uuid);
+		elem = elem == null ? getPlayList(uuid) : elem;
+
+		return elem == null ? null : elem.getName();
+	}
+
+	@Override
+	public UUID addPlayListSet(final UUID parentSetUUID) {
+		PlayListSet newSet = new PlayListSet();
+		addPlayListSet(parentSetUUID, newSet);
+		addPlayList(newSet.getUUID());
+
+		return newSet.getUUID();
+	}
+
+	private void addPlayListSet(final UUID parentSetUUID, final PlayListSet playListSet) {
+		if (parentSetUUID == null) {
+			rootPlayListSets.put(playListSet.getUUID(), playListSet);
+			update();
+		} else {
+			for (PlayListSet set : rootPlayListSets.values()) {
+				if (set.addPlayList(parentSetUUID, playListSet))
+					break;
+			}
+		}
+	}
+
+	@Override
+	public UUID getParent(final UUID child) {
+		if (rootPlayListSets.containsKey(child))
+			return null;
+
+		UUID result = null;
+
+		for (PlayListSetElement element : rootPlayListSets.values()) {
+			result = element.getParent(child);
+			if (result != null)
+				return result;
+		}
+
+		return null;
+	}
+
+	@Override
+	public void setTitle(final UUID uuid, final String newTitle) {
+		PlayListSetElement element = getPlayList(uuid);
+		element = (element != null) ? element : getPlayListSet(uuid);
+		if (element == null)
+			return;
+
+		element.setName(newTitle);
+	}
+
+	@Override
+	public void remove(final UUID uuid) {
+		UUID parentUUID = getParent(uuid);
+		if (parentUUID == null) {
+			rootPlayListSets.remove(uuid);
+			update();
+		} else {
+			PlayListSetElement parent = getElement(parentUUID);
+			parent.remove(uuid);
+			parent.update();
+		}
+
+	}
+
+	@Override
+	public void update(final UUID arg0) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public boolean isActive(final UUID elementUUID) {
+		return elementUUID != null ? elementUUID.equals(activeSet) : false;
+	}
+
+	@Override
+	public void setAutoplay(final UUID elementUUID, final boolean autoplay) {
+		PlayListSetElement element = getElement(elementUUID);
+		if (element != null) {
+			element.setAutoPlay(autoplay);
+		}
+	}
+
+	@Override
+	public boolean getAutoplay(final UUID elementUUID) {
+		PlayListSetElement element = getElement(elementUUID);
+		if (element != null) {
+			return element.getAutoPlay();
+		}
+		return false;
+	}
+
+	@Override
+	public void setActive(final UUID playListSetUUID) {
+		activeSet = playListSetUUID;
 	}
 
 }

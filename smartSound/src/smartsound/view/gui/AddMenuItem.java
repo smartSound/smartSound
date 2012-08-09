@@ -1,5 +1,5 @@
-/* 
- *	Copyright (C) 2012 Andrï¿½ Becker
+/*
+ *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -18,22 +18,24 @@
 package smartsound.view.gui;
 
 import java.awt.Image;
-import java.awt.Insets;
 
 import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
 import javax.swing.JMenuItem;
 import javax.swing.SwingConstants;
+import javax.swing.UIManager;
+
+import smartsound.view.gui.IconManager.IconType;
 
 public class AddMenuItem extends JMenuItem {
-	
-	private static final String iconPath = "images/plus.png";
-	
-	public AddMenuItem(AbstractAction action) {
+
+	public AddMenuItem(final AbstractAction action) {
 		super(action);
-		Image img = new ImageIcon(iconPath).getImage();
-		this.setHorizontalAlignment(SwingConstants.LEFT);
+		Image img = IconManager.getImage(IconType.ADD);
+		setHorizontalAlignment(SwingConstants.LEFT);
 		int border = getBorder().getBorderInsets(this).top + getBorder().getBorderInsets(this).bottom;
 		setIcon(new ImageIcon(img.getScaledInstance(-1, getPreferredSize().height - border,  java.awt.Image.SCALE_SMOOTH)));
+		setBackground(UIManager.getColor("Menu.background"));
+		setOpaque(false);
 	}
 }

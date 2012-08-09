@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -17,157 +17,144 @@
 
 package smartsound.view.gui;
 
-import java.util.*;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.UUID;
+
 import javax.swing.ListModel;
 import javax.swing.event.ListDataListener;
-import smartsound.player.IPlayListObserver;
+
+import smartsound.common.IObserver;
 import smartsound.player.ItemData;
-import smartsound.view.Action;
 
+public class PlayListDataModel implements ListModel<ItemData>, IObserver {
 
-public class PlayListDataModel
-    implements ListModel<ItemData>, IPlayListObserver
-{
+	private final GUIController controller;
+	private final UUID playListUUID;
+	private final List<ListDataListener> listeners;
 
-	private GUIController controller;
-    private UUID playListUUID;
-    private List<ListDataListener> listeners;
-	
-    public PlayListDataModel(GUIController controller, UUID playListUUID)
-    {
-        listeners = new LinkedList<ListDataListener>();
-        this.playListUUID = playListUUID;
-        this.controller = controller;
-        controller.addObserver(this, playListUUID);
-    }
+	public PlayListDataModel(final GUIController controller,
+			final UUID playListUUID) {
+		listeners = new LinkedList<ListDataListener>();
+		this.playListUUID = playListUUID;
+		this.controller = controller;
+		controller.addObserver(this, playListUUID);
+	}
 
-    public void addListDataListener(ListDataListener listener)
-    {
-        if(!listeners.contains(listener))
-            listeners.add(listener);
-    }
+	@Override
+	public void addListDataListener(final ListDataListener listener) {
+		if (!listeners.contains(listener))
+			listeners.add(listener);
+	}
 
-    public ItemData getElementAt(int index)
-    {
-        return controller.getItemData(playListUUID, index);
-    }
+	@Override
+	public ItemData getElementAt(final int index) {
+		return controller.getItemData(playListUUID, index);
+	}
 
-    public int getSize()
-    {
-        return controller.getSize(playListUUID);
-    }
+	@Override
+	public int getSize() {
+		return controller.getSize(playListUUID);
+	}
 
-    public void removeListDataListener(ListDataListener listener)
-    {
-        listeners.remove(listener);
-    }
+	@Override
+	public void removeListDataListener(final ListDataListener listener) {
+		listeners.remove(listener);
+	}
 
-    public void remove(int index, boolean stop)
-    {
-        controller.removeItem(playListUUID, index, stop);
-    }
+	public void remove(final int index, final boolean stop) {
+		controller.removeItem(playListUUID, index, stop);
+	}
 
-    public void add(int index, String filePath)
-    {
-        controller.addItem(playListUUID, index, filePath);
-    }
+	public void add(final int index, final String filePath) {
+		controller.addItem(playListUUID, index, filePath);
+	}
 
-    public void add(String filePath)
-    {
-        controller.addItem(playListUUID, getSize(), filePath);
-    }
+	public void add(final String filePath) {
+		controller.addItem(playListUUID, getSize(), filePath);
+	}
 
-    public void addAll(int index, List<String> filePathList)
-    {
-        int i = 0;
-        for(Iterator<String> iterator = filePathList.iterator(); iterator.hasNext();)
-        {
-            String filePath = (String)iterator.next();
-            add(index + i, filePath);
-            i++;
-        }
+	public void addAll(final int index, final List<String> filePathList) {
+		int i = 0;
+		for (String string : filePathList) {
+			String filePath = string;
+			add(index + i, filePath);
+			i++;
+		}
 
-    }
+	}
 
-    public void addAll(List<String> filePathList)
-    {
-        String filePath;
-        for(Iterator<String> iterator = filePathList.iterator(); iterator.hasNext(); add(filePath))
-            filePath = (String)iterator.next();
+	public void addAll(final List<String> filePathList) {
+		String filePath;
+		for (Iterator<String> iterator = filePathList.iterator(); iterator
+				.hasNext(); add(filePath))
+			filePath = iterator.next();
 
-    }
+	}
 
-    private void notifyListeners()
-    {
-        ListDataListener listener;
-        for(Iterator<ListDataListener> iterator = listeners.iterator(); iterator.hasNext(); listener.contentsChanged(null))
-            listener = (ListDataListener)iterator.next();
+	private void notifyListeners() {
+		ListDataListener listener;
+		for (Iterator<ListDataListener> iterator = listeners.iterator(); iterator
+				.hasNext(); listener.contentsChanged(null))
+			listener = iterator.next();
 
-    }
+	}
 
-    public void playListChanged(UUID playListUUID)
-    {
-        if(playListUUID.equals(this.playListUUID))
-            notifyListeners();
-    }
+	@Override
+	public void update(final UUID observableUUID) {
+		if (observableUUID.equals(playListUUID))
+			notifyListeners();
+	}
 
-    public int getIndexFromUuid(UUID itemUUID)
-    {
-        return controller.getItemIndex(playListUUID, itemUUID);
-    }
+	public int getIndexFromUuid(final UUID itemUUID) {
+		return controller.getItemIndex(playListUUID, itemUUID);
+	}
 
-    public UUID getUUID()
-    {
-        return playListUUID;
-    }
+	public UUID getUUID() {
+		return playListUUID;
+	}
 
-    public void importItems(UUID sourcePlayListUUID, List<UUID> itemUUIDs, int targetIndex, boolean copy)
-    {
-        controller.importItems(sourcePlayListUUID, itemUUIDs, playListUUID, targetIndex, copy);
-    }
+	public void importItems(final UUID sourcePlayListUUID,
+			final List<UUID> itemUUIDs, final int targetIndex,
+			final boolean copy) {
+		controller.importItems(sourcePlayListUUID, itemUUIDs, playListUUID,
+				targetIndex, copy);
+	}
 
-    public boolean isRepeatList()
-    {
-        return controller.isRepeatList(playListUUID);
-    }
+	public boolean isRepeatList() {
+		return controller.isRepeatList(playListUUID);
+	}
 
-    public boolean isRandomizeList()
-    {
-        return controller.isRandomizeList(playListUUID);
-    }
+	public boolean isRandomizeList() {
+		return controller.isRandomizeList(playListUUID);
+	}
 
-    public void setChainWith(UUID source, UUID target)
-    {
-        controller.getItemChainWithAction(playListUUID, source).execute(target);
-    }
+	public void setChainWith(final UUID source, final UUID target) {
+		controller.getItemChainWithAction(playListUUID, source, "Chain with item action").execute(target);
+	}
 
-    public float getRandomizeVolumeFrom()
-    {
-        return controller.getRandomizeVolumeFrom(playListUUID);
-    }
+	public float getRandomizeVolumeFrom() {
+		return controller.getRandomizeVolumeFrom(playListUUID);
+	}
 
-    public float getRandomizeVolumeTo()
-    {
-        return controller.getRandomizeVolumeTo(playListUUID);
-    }
+	public float getRandomizeVolumeTo() {
+		return controller.getRandomizeVolumeTo(playListUUID);
+	}
 
-    public int getFadeIn()
-    {
-        return controller.getFadeIn(playListUUID);
-    }
+	public int getFadeIn() {
+		return controller.getFadeIn(playListUUID);
+	}
 
-    public int getFadeOut()
-    {
-        return controller.getFadeOut(playListUUID);
-    }
+	public int getFadeOut() {
+		return controller.getFadeOut(playListUUID);
+	}
 
-    public int getOverlap()
-    {
-        return controller.getOverlap(playListUUID);
-    }
+	public int getOverlap() {
+		return controller.getOverlap(playListUUID);
+	}
 
-    public float getVolume()
-    {
-        return controller.getVolume(playListUUID);
-    }
+	public float getVolume() {
+		return controller.getVolume(playListUUID);
+	}
 }
