@@ -64,7 +64,12 @@ public class PainterLabel extends DefaultListCellRenderer
 			displayTitle = (new StringBuilder(String.valueOf(displayTitle.substring(0, displayTitle.length() - 1)))).append("...").toString();
 			displayTitle = (new StringBuilder(String.valueOf(displayTitle))).append("...").toString();
 		}
-		for(; width - g2d.getFontMetrics().stringWidth(displayTitle) < 0; displayTitle = (new StringBuilder(String.valueOf(displayTitle.substring(0, Math.max(displayTitle.length() - 4, 0))))).append("...").toString());
+		
+		
+		while (displayTitle.length() > 3 && width - g2d.getFontMetrics().stringWidth(displayTitle) < 0) {
+			displayTitle = (new StringBuilder(String.valueOf(displayTitle.substring(0, Math.max(displayTitle.length() - 4, 0))))).append("...").toString();
+		}
+		
 		int y = (int)(((titleRect.y + titleRect.getHeight() / 2D) - (g2d.getFontMetrics().getAscent() + g2d.getFontMetrics().getDescent()) / 2) + g2d.getFontMetrics().getAscent());
 		g2d.drawString(displayTitle, titleRect.x, y);
 		Composite comp = g2d.getComposite();

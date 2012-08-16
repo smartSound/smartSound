@@ -251,8 +251,7 @@ public class Launcher {
 					InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
 					BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
 					String errLine;
-					String timeString = new SimpleDateFormat("YYMMDDHHmmss").format(new Date());
-					System.out.println(timeString);
+					String timeString = new SimpleDateFormat("YYMMddHHmmss").format(new Date());
 					File file = new File("./tmp/" + timeString + ".log");
 					FileWriter writer = null;
 					try {

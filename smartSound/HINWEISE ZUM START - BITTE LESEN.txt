@@ -1,6 +1,6 @@
-Dankeschön, dass du smartSound ausprobierst. Um smartSound zu starten hast du verschiedene Möglichkeiten, die im folgenden für Windows beschrieben sind. Es gilt aber immer, dass Java 7 in der 32 Bit Version installiert sein muss.
+Dankeschön, dass du smartSound ausprobierst. Um smartSound zu starten hast du verschiedene Möglichkeiten, die im folgenden für Windows beschrieben sind.
 
-
+ACTUNG: Java 7 muss in der 32Bit Version installiert sein!
 
 1. Doppelklick auf die "smartSound.jar"
 Die einfachste Möglichkeit. Es gibt aber viele Gründe, weshalb das möglicherweise nicht funktioniert. Vielleicht passiert gar nichts, vielleicht öffnet sich aber auch ein Ordner in dem verschiedene Dateien liegen. Wird der Player hingegen gestartet, habt ihr den geringsten Aufwand.

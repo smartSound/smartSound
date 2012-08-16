@@ -48,6 +48,10 @@ public class PlayListTransferHandler extends TransferHandler implements ITimeEve
 	public int getSourceActions(final JComponent comp) {
 		assert comp instanceof PlayList;
 		PlayList list = (PlayList) comp;
+		if (list.getMousePosition() == null) {
+			return TransferHandler.NONE;
+		}
+		
 		if (list.insideChainRectOf(list.getMousePosition()) != -1) {
 			return TransferHandler.LINK;
 		} else {

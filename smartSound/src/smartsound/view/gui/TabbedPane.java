@@ -144,7 +144,8 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 		int width = insets.left + insets.right;
 		int height = insets.top + insets.bottom;
 
-		Component c = getComponentAt(getSelectedIndex());
+		int selectedIndex = getSelectedIndex();
+		Component c = selectedIndex > -1 ? getComponentAt(getSelectedIndex()) : null;
 		if (c != null) {
 			width += c.getMinimumSize().width;
 			height += c.getMinimumSize().height;
@@ -156,7 +157,6 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 
 	@Override
 	public void mouseClicked(final MouseEvent e) {
-		System.out.println("Click!");
 		Point p = e.getPoint();
 		int index = getTabIndex(p);
 		if (index > -1) {
