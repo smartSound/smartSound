@@ -68,10 +68,9 @@ public class MainFrame extends JFrame implements IGUILadder {
 	@Override
 	public void updateMinimumSize() {
 		setMinimumSize(getComponent(0).getMinimumSize());
-		if (!getSize().equals(getMinimumSize()))
+		if ((getExtendedState() & JFrame.MAXIMIZED_BOTH) != JFrame.MAXIMIZED_BOTH && !getSize().equals(getMinimumSize()))
 			setSize(getMinimumSize());
 
-		System.out.println("Updating minimum size to " + getMinimumSize());
 	}
 
 }

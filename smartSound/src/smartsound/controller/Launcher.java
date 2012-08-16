@@ -20,6 +20,7 @@ package smartsound.controller;
 import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -28,6 +29,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +87,6 @@ public class Launcher {
 			e.printStackTrace();
 		}
 
-		System.out.println("I was here!");
 	}
 
 	/**
@@ -249,10 +251,25 @@ public class Launcher {
 					InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
 					BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
 					String errLine;
+					String timeString = new SimpleDateFormat("YYMMDDHHmmss").format(new Date());
+					System.out.println(timeString);
+					File file = new File("./tmp/" + timeString + ".log");
+					FileWriter writer = null;
+					try {
+						file.createNewFile();
+						writer = new FileWriter(file, true);
+					} catch (IOException e1) {
+						e1.printStackTrace();
+					}
+					
 					try {
 						while ((errLine = bufferedReader.readLine()) != null) {
 							System.err.println(errLine);
+							writer.write(errLine);
+							writer.write(System.getProperty("line.separator"));
+							writer.flush();
 						}
+						writer.close();
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();

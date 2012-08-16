@@ -266,7 +266,6 @@ public class PlayListSetPanel extends JPanel implements IGUILadder, IObserver, I
 
 	@Override
 	public void updateLayout(final Layout layout) {
-		System.out.println(layout);
 		removeAll();
 
 		int count = 0;
@@ -368,7 +367,6 @@ public class PlayListSetPanel extends JPanel implements IGUILadder, IObserver, I
 		}
 
 		setMinimumSize(new Dimension(maxWidth, maxHeight));
-		System.out.println("In PlayListSet: " + getMinimumSize());
 		parent.updateMinimumSize();
 	}
 

@@ -31,14 +31,19 @@ import javax.swing.JList;
 import javax.swing.TransferHandler;
 
 import smartsound.player.ItemData;
+import smartsound.player.events.ITimeEventListener;
+import smartsound.player.events.TimeEventHandler;
 
-public class PlayListTransferHandler extends TransferHandler {
+public class PlayListTransferHandler extends TransferHandler implements ITimeEventListener {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 6802446968140030296L;
 
+	private PlayList lastPlayList = null;
+	private long currentTime = -1;
+	
 	@Override
 	public int getSourceActions(final JComponent comp) {
 		assert comp instanceof PlayList;
@@ -79,6 +84,7 @@ public class PlayListTransferHandler extends TransferHandler {
 
 	@Override
 	public void exportDone(final JComponent c, final Transferable t, final int action) {
+		currentTime = -1;
 		c.repaint();
 	}
 
@@ -90,6 +96,11 @@ public class PlayListTransferHandler extends TransferHandler {
 				|| t.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
 			if (t.getComponent() instanceof PlayList) {
 				PlayList list = (PlayList) t.getComponent();
+				if (currentTime == -1) {
+					lastPlayList = list;
+					TimeEventHandler.add(this, null);
+				}
+				currentTime = System.currentTimeMillis(); 
 				list.setDropLocation((JList.DropLocation) t.getDropLocation());
 				list.setDropAction(t.getDropAction());
 				list.repaint(20);
@@ -171,5 +182,24 @@ public class PlayListTransferHandler extends TransferHandler {
 		}
 
 		return returnList;
+	}
+
+	@Override
+	public boolean receiveTimeEvent(final long currentTime, final Object obj) {
+		if (this.currentTime == -1) {
+			if (lastPlayList != null) {
+				lastPlayList.setDropLocation(null);
+				lastPlayList.repaint(250);
+			}
+			return false;
+		}
+		
+		if (currentTime - this.currentTime > 1000) {
+			lastPlayList.setDropLocation(null);
+			lastPlayList.repaint(250);
+		}
+		
+		return true;
+			
 	}
 }

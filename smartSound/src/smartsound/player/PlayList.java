@@ -67,6 +67,7 @@ public class PlayList extends PlayListSetElement {
 		repeatList = Boolean.parseBoolean(map.get("repeat"));
 		stopAfterEachSound = Boolean.parseBoolean(map.get("stop_after_each_sound"));
 		randomizeList = Boolean.parseBoolean(map.get("randomize"));
+		autoPlay = Boolean.parseBoolean(map.get("autoplay"));
 
 		playerControllerSettings.setFadeInLength(Integer.parseInt(map.get("fade_in_length")));
 		playerControllerSettings.setFadeOutLength(Integer.parseInt(map.get("fade_out_length")));
@@ -109,7 +110,12 @@ public class PlayList extends PlayListSetElement {
 			}
 		}
 
-		play(0);
+		int index = 0;
+		if (!itemList.isEmpty() && randomizeList) {
+			index = new Random().nextInt(itemList.size());
+		}
+		
+		play(index);
 	}
 
 	/**
@@ -667,6 +673,7 @@ public class PlayList extends PlayListSetElement {
 		map.put("max_volume", String.valueOf(playerControllerSettings.getVolume()));
 		map.put("volume_from", String.valueOf(playerControllerSettings.getRandomizeVolumeFrom()));
 		map.put("volume_to", String.valueOf(playerControllerSettings.getRandomizeVolumeTo()));
+		map.put("autoplay", String.valueOf(autoPlay));
 
 		for (PlayListItem item : itemList) {
 			map.addPropertyMap(item.getPropertyMap());

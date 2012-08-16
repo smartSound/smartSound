@@ -47,7 +47,7 @@ public class Toolbar extends JToolBar implements IGUILadder {
 		fileChooser.setFileFilter(new FileFilter() {
 			@Override
 			public boolean accept(final File file) {
-				return file.getPath().endsWith(".ssf");
+				return file.isDirectory() || file.getPath().endsWith(".ssf");
 			}
 
 			@Override
@@ -55,6 +55,8 @@ public class Toolbar extends JToolBar implements IGUILadder {
 				return "smartSound files (*.ssf)";
 			}
 		});
+		
+		fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
 
 		JLabel lbl = new ButtonLabel(IconManager.getImage(IconType.LOAD));
 		lbl.addMouseListener(new MouseAdapter() {

@@ -350,8 +350,8 @@ public class PlayListItem implements ITimeEventListener {
 		}
 		Random rnd = new Random();
 
-		int range = (int) (settings.getRandomizeVolumeTo() - settings
-				.getRandomizeVolumeFrom() * 100) ;
+		int range = (int) ((settings.getRandomizeVolumeTo() - settings
+				.getRandomizeVolumeFrom()) * 100) ;
 
 		int randomized;
 		if (range <= 0) {

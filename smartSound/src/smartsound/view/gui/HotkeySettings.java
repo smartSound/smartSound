@@ -105,8 +105,14 @@ public class HotkeySettings extends JDialog implements ItemListener {
 			}
 		});
 		borderPanel.add(removeButton, gbc);
-		borderPanel.add(new JButton("Export as PDF"), gbc);
-		borderPanel.add(new JButton("Print"), gbc);
+		
+		JButton exportButton = new JButton("Export as PDF");
+		exportButton.setEnabled(false);
+		borderPanel.add(exportButton, gbc);
+		
+		JButton printButton = new JButton("Print");
+		printButton.setEnabled(false);
+		borderPanel.add(printButton, gbc);
 
 		gbc.gridy = 1;
 		panel.add(borderPanel, gbc);
@@ -117,7 +123,7 @@ public class HotkeySettings extends JDialog implements ItemListener {
 		gbc.gridy = 2;
 		gbc.fill =  GridBagConstraints.BOTH;
 
-		JLabel helpText = new JLabel("<html><body>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum</body></html>");
+		JLabel helpText = new JLabel("<html><body><div style=\"text-align: justify;\">Choose a scene above to display the hotkeys for this scene. Hotkeys for a specific are only available if that scene is active. However, 'GLOBAL' hotkeys can be accessed anytime.<br/> Double-click a 'Comment' field to add your own notes. They will appear in the printed and exported hotkey lists.</div></body></html>");
 		helpPanel.add(helpText);
 		panel.add(helpPanel, gbc);
 

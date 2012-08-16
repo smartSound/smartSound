@@ -166,7 +166,7 @@ IGUILadder {
 					showMenu(e);
 				lastMouseClickPosition = null;
 			}
-
+			
 			private void showMenu(final MouseEvent e) {
 				JPopupMenu menu = new JPopupMenu();
 				JMenu hotkeyMenu = new JMenu("Hotkeys");

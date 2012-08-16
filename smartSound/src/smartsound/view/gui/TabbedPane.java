@@ -135,7 +135,6 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 
 	@Override
 	public void updateMinimumSize() {
-		System.out.println("In TabbedPane: " + getMinimumSize());
 		parent.updateMinimumSize();
 	}
 
@@ -150,7 +149,6 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 			width += c.getMinimumSize().width;
 			height += c.getMinimumSize().height;
 		} else {
-			System.out.println("Component is null at index " + getSelectedIndex());
 		}
 
 		return new Dimension(width, height);
@@ -158,6 +156,7 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 
 	@Override
 	public void mouseClicked(final MouseEvent e) {
+		System.out.println("Click!");
 		Point p = e.getPoint();
 		int index = getTabIndex(p);
 		if (index > -1) {
@@ -219,7 +218,7 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 			if (sourceIndex > -1 && sourceIndex < getTabCount() - 1) {
 				UUID sourceUUID = indexMap.get(sourceIndex).getPlayListSetUUID();
 				getGUIController().shiftElement(sourceUUID, targetIndex, 0, PositionType.LEFT);
-				setSelectedIndex(targetIndex);
+				setSelectedIndex(sourceIndex > targetIndex ? targetIndex : targetIndex - 1);
 			}
 		}
 
