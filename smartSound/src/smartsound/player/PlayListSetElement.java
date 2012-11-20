@@ -19,45 +19,126 @@ package smartsound.player;
 
 import java.util.UUID;
 
+import smartsound.common.IElement;
 import smartsound.common.Observable;
 import smartsound.common.PropertyMap;
+import smartsound.controller.AbstractController;
 
-public abstract class PlayListSetElement extends Observable {
+public abstract class PlayListSetElement extends Observable implements IElement {
 
-	public PlayListSetElement(final UUID uuid) {
+	protected PlayListSetElement parent;
+
+	public PlayListSetElement(final UUID uuid, final PlayListSetElement parent) {
 		super(uuid);
+		this.parent = parent;
 	}
 
 	public abstract void dispose();
 
-	public abstract String getName();
+	protected abstract String getName();
 
-	public abstract float getVolume();
+	protected abstract float getVolume();
 
-	public abstract void setVolume(float volume);
+	protected abstract void setVolume(float volume);
 
-	public abstract void setParentVolume(float volume);
+	protected abstract void setParentVolume(float volume);
 
 	public abstract void play();
 
-	public abstract boolean getAutoPlay();
+	protected abstract boolean getAutoPlay();
 
-	public abstract void setAutoPlay(boolean autoPlay);
+	protected abstract void setAutoPlay(boolean autoPlay);
 
-	public abstract boolean isActive();
+	protected abstract boolean isActive();
 
 	public abstract void pause();
 
 	public abstract void stop();
 
-	public abstract void setName(String name);
+	protected abstract void setName(String name);
 
 	public abstract PropertyMap getPropertyMap();
 
-	public abstract PlayListSet getPlayListSet(UUID playListSetUUID);
+	protected abstract void notifyChangeObservers(String... propertyNames);
 
-	public abstract UUID getParent(UUID child);
 
-	public abstract void remove(UUID uuid);
+	@Override
+	public final void act(final String... actionTypes) {
+		for (String s : actionTypes) {
+			act(s);
+		}
+	}
+
+	protected void act(final String actionType) {
+		switch(actionType) {
+		case "PAUSE":
+			pause();
+			break;
+		case "PLAY":
+			play();
+			break;
+		case "STOP":
+			stop();
+			break;
+		}
+	}
+
+	@Override
+	public final NameValuePair[] get(final String... propertyNames) {
+		NameValuePair[] result = new NameValuePair[propertyNames.length];
+
+		for (int i = 0; i < propertyNames.length; i++) {
+			result[i] = NameValuePair.create(propertyNames[i], get(propertyNames[i]));
+		}
+
+		return result;
+	}
+
+	protected Object get(final String propertyName) {
+		switch (propertyName) {
+		case "AUTOPLAY":
+			return getAutoPlay();
+		case "NAME":
+			return getName();
+		case "PARENT":
+			return parent == null ? null : parent.getUUID();
+		case "VOLUME":
+			return getVolume();
+		case "ACTIVE":
+			return isActive();
+		case "ROOTPARENT":
+			return parent == null || (parent instanceof AbstractController) ? getUUID() : parent.get("ROOTPARENT");
+		}
+		return null;
+	}
+
+	@Override
+	public final void set(final NameValuePair... params) {
+		String[] propertyNames = new String[params.length];
+		int i = 0;
+		for (NameValuePair nvp : params) {
+			propertyNames[i] = nvp.name;
+			set(nvp.name, nvp.value);
+		}
+		notifyChangeObservers(propertyNames);
+	}
+
+	protected void set(final String propertyName, final Object value) {
+		switch (propertyName) {
+		case "AUTOPLAY":
+			if (value instanceof Boolean)
+				setAutoPlay((Boolean) value);
+		case "NAME":
+			if (value instanceof String)
+				setName((String) value);
+		case "PARENT":
+			if (value instanceof PlayListSetElement)
+				parent = (PlayListSetElement) value;
+		case "VOLUME":
+			if (value instanceof Float) {
+				setVolume((Float) value);
+			}
+		}
+	}
 
 }

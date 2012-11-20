@@ -41,8 +41,10 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.swing.AbstractAction;
@@ -56,8 +58,7 @@ import javax.swing.border.TitledBorder;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
-import smartsound.common.Tuple;
-import smartsound.view.Action;
+import smartsound.common.IElement.NameValuePair;
 import smartsound.view.gui.IconManager.IconType;
 
 public class PlayListPanelBorder extends TitledBorder implements MouseListener,
@@ -68,10 +69,6 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 	private float lastKnownVolume;
 	protected boolean movedClockwise = false;
 	private final UUID playListUUID;
-	private final Action playAction;
-	private final Action stopAction;
-	private final Action repeatListAction;
-	private final Action volumeAction;
 	private boolean showSettings = false;
 
 	private static final long serialVersionUID = 0xb06ba5eaf1981e0cL;
@@ -80,7 +77,6 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 	private final Image imageActiveList[];
 	private final Image imageMouseOverList[];
 	private final boolean activityList[];
-	private String title;
 	private boolean showVolume;
 	private float volume;
 	private boolean dragged = false;
@@ -92,12 +88,13 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 	private static final int SETTINGS = 3;
 	private static final int SPEAKER = 4;
 
-	public PlayListPanelBorder(final IGUILadder parent, final PlayListDataModel model,
-			final String title) {
-		super(title);
+	public PlayListPanelBorder(final IGUILadder parent, final UUID layoutUUID) {
+		super("");
 		this.parent = parent;
-		this.panel = new PlayListPanel(this, this, model);
-		this.title = title;
+		this.panel = new PlayListPanel(this, layoutUUID);
+		this.panel.setBorder(this);
+		PlayListDataModel model = panel.getModel();
+		super.setTitle(model.getTitle());
 		playListUUID = model.getUUID();
 		model.addListDataListener(this);
 
@@ -131,23 +128,16 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 
 		activityList = new boolean[imageList.length];
 
-		playAction = parent.getGUIController().getPlayPlayListAction(
-				playListUUID,
-				"Play '" + title + "'");
-		stopAction = parent.getGUIController().getStopAction(playListUUID, "Stop '" + title + "'");
-		repeatListAction = parent.getGUIController().getRepeatListAction(
-				playListUUID,
-				"Repeat '" + title + "'"
-				);
-		volumeAction = parent.getGUIController().getVolumeAction(playListUUID,
-				"Set volume for '" + title + "'"
-				);
 
 		panel.addMouseMotionListener(this);
 		panel.addMouseWheelListener(this);
 		panel.addMouseListener(this);
 
-		setVolume(getGUIController().getVolume(playListUUID));
+		NameValuePair[] pairs = getGUIController().get(playListUUID, "VOLUME");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof Float;
+
+		setVolume((Float) pairs[0].value);
 		updateButtons();
 		movedClockwise = volume > 0.5d;
 
@@ -353,7 +343,7 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 	@Override
 	public void mouseClicked(final MouseEvent e) {
 		if (posToIconIndex(e.getPoint()) < 0 && e.getClickCount() == 2) {
-			getGUIController().getPlayPlayListAction(playListUUID, "Play").execute();
+			getGUIController().act(playListUUID, "PLAY");
 		}
 	}
 
@@ -391,12 +381,16 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 			if (posToIconIndex(e.getPoint()) != -1
 					&& e.getButton() == MouseEvent.BUTTON1) {
 				if (index == PLAY)
-					playAction.execute();
+					getGUIController().act(playListUUID, "PLAY");
 				else if (index == STOP)
-					stopAction.execute();
-				else if (index == REPEAT)
-					repeatListAction.execute(!parent.getGUIController()
-							.isRepeatList(playListUUID));
+					getGUIController().act(playListUUID, "STOP");
+				else if (index == REPEAT) {
+					NameValuePair[] pairs = getGUIController().get(playListUUID, "REPEAT");
+					assert pairs.length == 1;
+					assert (pairs[0].value instanceof Boolean);
+
+					getGUIController().set(playListUUID, "REPEAT", !(Boolean) pairs[0].value);
+				}
 				else if (index == SETTINGS) {
 					((CardLayout) panel.getLayout()).next(panel);
 					showSettings = !showSettings;
@@ -426,12 +420,8 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 				KeyEvent event = dialog.getEvent();
 				if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
 					return;
-				parent.getGUIController().setHotkey(
-						playListUUID,
-						event,
-						getGUIController().getPlayPlayListAction(
-								playListUUID,
-								"Play '" + title + "'"));
+
+				parent.getGUIController().addActHotkey(event, playListUUID, "PLAY");
 				wnd.toFront();
 			}
 
@@ -445,8 +435,7 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 				KeyEvent event = dialog.getEvent();
 				if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
 					return;
-				parent.getGUIController().setHotkey(playListUUID, event,
-						getGUIController().getStopAction(playListUUID, "Stop '" + title + "'"));
+				parent.getGUIController().addActHotkey(event, playListUUID, "STOP");
 				wnd.toFront();
 			}
 
@@ -463,14 +452,9 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 				Object[] options = { true, false };
 				String result = (String) UserInput.getInput(panel,
 						"Turn on", "Turn off");
-				parent.getGUIController().setHotkey(
-						playListUUID,
-						event,
-						getGUIController().getRepeatListAction(
-								playListUUID,
-								"Repeat '" + title + "'").specialize(
-										result + " repeating for '" + title + "'",
-										result.equals("Turn on")));
+				Map<String, Object> values = new HashMap<String, Object>();
+				values.put("REPEAT", result.equals("Turn on"));
+				parent.getGUIController().addSetHotkey(event, playListUUID, values);
 				wnd.toFront();
 			}
 
@@ -485,9 +469,12 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 				KeyEvent event = dialog.getEvent();
 				if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
 					return;
+				NameValuePair[] pairs = getGUIController().get(playListUUID, "VOLUME");
+				assert pairs.length == 1;
+				assert pairs[0].value instanceof Float;
+
 				Double result = UserInput
-						.getInput(panel, 0, 100, 1, getGUIController()
-								.getVolume(playListUUID) * 100);
+						.getInput(panel, 0, 100, 1, (Float) pairs[0].value * 100);
 				float volume;
 				try {
 					volume = result.floatValue() / 100.0f;
@@ -496,48 +483,44 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 				} catch (NumberFormatException e) {
 					return;
 				}
-				parent.getGUIController().setHotkey(playListUUID,
-						event,
-						volumeAction.specialize("Set volume of '" + title + "' to " + (100*volume) + "%" ,volume));
+				Map<String, Object> values = new HashMap<String, Object>();
+				values.put("VOLUME", (100*volume));
+				parent.getGUIController().addSetHotkey(event, playListUUID, values);
 				wnd.toFront();
 			}
 		}));
 
 		String itemTitle;
 		List<JMenuItem> menuItemList = new LinkedList<JMenuItem>();
+		/*
 		for (Tuple<String, Action> tuple : getGUIController().getHotkeys(
 				playAction)) {
-			itemTitle = "Play";
+			itemTitle = tuple.second.getDescription();
 			menuItemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle,
-					getGUIController()));
+					tuple.first, playListUUID, getGUIController()));
 		}
 
 		for (Tuple<String, Action> tuple : getGUIController().getHotkeys(
 				stopAction)) {
-			itemTitle = "Stop";
+			itemTitle = tuple.second.getDescription();
 			menuItemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle,
-					getGUIController()));
+					tuple.first, playListUUID, getGUIController()));
 		}
 
 		for (Tuple<String, Action> tuple : getGUIController().getHotkeys(
 				repeatListAction)) {
-			itemTitle = (boolean) tuple.second.getLastParam() ? "Turn on"
-					: "Turn off";
-			itemTitle += " 'repeat list'";
+			itemTitle = tuple.second.getDescription();
 			menuItemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle,
-					getGUIController()));
+					tuple.first, playListUUID, getGUIController()));
 		}
 
 		for (Tuple<String, Action> tuple : getGUIController().getHotkeys(
 				volumeAction)) {
-			itemTitle = "Set 'volume' to ";
-			itemTitle += Math
-					.round(((float) tuple.second.getDefaultParam(tuple.second
-							.getNoOfDefaultParams() - 1)) * 100.0);
-			itemTitle += "%";
+			itemTitle = tuple.second.getDescription();
 			menuItemList.add(new RemoveHotkeyMenuItem(tuple.second, itemTitle,
-					getGUIController()));
+					tuple.first, playListUUID, getGUIController()));
 		}
+		 */
 
 		if (!menuItemList.isEmpty()) {
 			hotkeyMenu.add(new TitledSeparator("Remove hotkeys", false));
@@ -624,7 +607,7 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 
 	public void updateVolume(final float volume) {
 		lastKnownVolume = volume;
-		volumeAction.execute(volume);
+		getGUIController().set(playListUUID, "VOLUME", volume);
 		setVolume(volume);
 	}
 
@@ -647,10 +630,21 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 		JCheckBoxMenuItem autoPlayItem = new JCheckBoxMenuItem(new AbstractAction("Autoplay", new ImageIcon(IconManager.getImage(IconType.PLAY))) {
 			@Override
 			public void actionPerformed(final ActionEvent arg0) {
-				getGUIController().setAutoplay(playListUUID, !getGUIController().getAutoplay(playListUUID));
+				NameValuePair[] pairs = getGUIController().get(playListUUID, "AUTOPLAY");
+				assert pairs.length == 1;
+				assert pairs[0].value instanceof Boolean;
+
+				NameValuePair[] setPair = new NameValuePair[1];
+				setPair[0] =  NameValuePair.create("AUTOPLAY", !(Boolean) pairs[0].value);
+
+				getGUIController().set(playListUUID, setPair);
 			}
 		});
-		autoPlayItem.setSelected(getGUIController().getAutoplay(playListUUID));
+		NameValuePair[] pairs = getGUIController().get(playListUUID, "AUTOPLAY");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof Boolean;
+
+		autoPlayItem.setSelected((Boolean) pairs[0].value);
 		menu.add(autoPlayItem);
 
 		menu.addSeparator();
@@ -684,7 +678,10 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 				StringInputDialog dialog = new StringInputDialog(SwingUtilities.getWindowAncestor(panel), "Choose a new name for the playlist and press Enter", title);
 				dialog.setVisible(true);
 				String input = dialog.getTextInput();
-				getGUIController().setTitle(playListUUID, input);
+
+				NameValuePair[] setPair = new NameValuePair[1];
+				setPair[0].value = NameValuePair.create("TITLE", input);
+				getGUIController().set(playListUUID, setPair);
 			}
 		});
 
@@ -694,13 +691,23 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 	}
 
 	private void updateButtons() {
-		setActive(PLAY, getGUIController().getAutoplay(playListUUID));
+
+		NameValuePair[] pairs = new NameValuePair[4];
+		pairs = getGUIController().get(playListUUID, "AUTOPLAY", "REPEAT", "VOLUME", "NAME");
+		assert pairs.length == 4;
+		assert pairs[0].value instanceof Boolean;
+		assert pairs[1].value instanceof Boolean;
+		assert pairs[2].value instanceof Float;
+		assert pairs[3].value instanceof String;
+
+		setActive(PLAY, (Boolean) pairs[0].value);
 		setActive(STOP, false);
-		setActive(REPEAT, getGUIController().isRepeatList(playListUUID));
+		setActive(REPEAT, (Boolean) pairs[1].value);
 		setActive(SETTINGS, showSettings);
 		setActive(SPEAKER, false);
-		setVolume(getGUIController().getVolume(playListUUID));
-		title = getGUIController().getTitle(playListUUID);
+		setVolume((Float) pairs[2].value);
+		title = (String) pairs[3].value;
+
 		updateIcons();
 	}
 
@@ -720,5 +727,9 @@ MouseMotionListener, MouseWheelListener, IGUILadder, ListDataListener {
 	@Override
 	public void updateMinimumSize() {
 		parent.updateMinimumSize();
+	}
+
+	public void movedTo(final PlayListPanel playListPanel, final int x, final int y) {
+		((PlayListSetPanel) parent).movedTo(playListPanel, x, y);
 	}
 }

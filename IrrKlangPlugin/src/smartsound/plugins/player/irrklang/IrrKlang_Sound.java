@@ -22,15 +22,15 @@ import com.sun.jna.ptr.IntByReference;
 
 public class IrrKlang_Sound {
 
-	private Pointer sound;
-	private IrrKlang irrKlang;
+	private final Pointer sound;
+	private final IrrKlang irrKlang;
 	
-	IrrKlang_Sound(Pointer sound) {
+	IrrKlang_Sound(final Pointer sound) {
 		irrKlang = IrrKlangSingleton.getInstance();
 		this.sound = sound;
 	}
 	
-	public void setIsPaused(boolean paused) {
+	public void setIsPaused(final boolean paused) {
 		irrKlang.ISound_setIsPaused(sound, paused);
 	}
 	
@@ -46,11 +46,11 @@ public class IrrKlang_Sound {
 		return irrKlang.ISound_getVolume(sound);
 	}
 	
-	public void setVolume(float volume) {
+	public void setVolume(final float volume) {
 		irrKlang.ISound_setVolume(sound, volume);
 	}
 	
-	public void setPan(float pan) {
+	public void setPan(final float pan) {
 		irrKlang.ISound_setPan(sound, pan);
 	}
 	
@@ -62,7 +62,7 @@ public class IrrKlang_Sound {
 		return irrKlang.ISound_isLooped(sound);
 	}
 	
-	public void setIsLooped(boolean looped) {
+	public void setIsLooped(final boolean looped) {
 		irrKlang.ISound_setIsLooped(sound, looped);
 	}
 	
@@ -70,7 +70,7 @@ public class IrrKlang_Sound {
 		return irrKlang.ISound_isFinished(sound);
 	}
 	
-	public void setMinDistance(float min) {
+	public void setMinDistance(final float min) {
 		irrKlang.ISound_setMinDistance(sound, min);
 	}
 	
@@ -78,7 +78,7 @@ public class IrrKlang_Sound {
 		return irrKlang.ISound_getMinDistance(sound);
 	}
 	
-	public void setMaxDistance(float max) {
+	public void setMaxDistance(final float max) {
 		irrKlang.ISound_setMaxDistance(sound, max);
 	}
 	
@@ -90,11 +90,11 @@ public class IrrKlang_Sound {
 		return irrKlang.ISound_getPlayPosition(sound);
 	}
 	
-	public boolean setPlayPosition(int pos) {
+	public boolean setPlayPosition(final int pos) {
 		return irrKlang.ISound_setPlayPosition(sound, new IntByReference(pos));
 	}
 	
-	public boolean setPlaybackSpeed(float speed) {
+	public boolean setPlaybackSpeed(final float speed) {
 		return irrKlang.ISound_setPlaybackSpeed(sound, speed);
 	}
 	

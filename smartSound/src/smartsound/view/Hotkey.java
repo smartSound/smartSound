@@ -15,40 +15,26 @@
  *	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package smartsound.view.gui;
+package smartsound.view;
 
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
+import java.util.UUID;
 
-import javax.swing.JPanel;
-import javax.swing.JToolBar;
+public abstract class Hotkey {
+	private final UUID elementUUID;
+	private final String hotkey;
 
-public class PanelWrapper extends JPanel {
-
-	private final JPanel panel;
-
-	public PanelWrapper(final JPanel panel, final JToolBar toolBar) {
-		super(new GridBagLayout());
-
-		this.panel = panel;
-
-		GridBagConstraints c = new GridBagConstraints();
-		c.weightx = 0.5f;
-		c.weighty = 0.0f;
-		c.gridx = 0;
-		c.gridy = 0;
-		c.fill = GridBagConstraints.BOTH;
-		add(toolBar, c);
-
-		//		c.gridy = 1;
-		//		add(new JSeparator(), c);
-
-		c.gridy = 2;
-		c.weighty = 1;
-		add(panel, c);
+	protected Hotkey(final String hotkey, final UUID elementUUID) {
+		this.elementUUID = elementUUID;
+		this.hotkey = hotkey;
 	}
 
-	public JPanel getPanel() {
-		return panel;
+	protected UUID getElementUUID() {
+		return elementUUID;
 	}
+
+	protected String getHotkey() {
+		return hotkey;
+	}
+
+	public abstract void executeHotkey(AbstractViewController controller);
 }

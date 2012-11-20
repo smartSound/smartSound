@@ -26,8 +26,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.swing.AbstractAction;
@@ -45,8 +47,7 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
-import smartsound.common.Tuple;
-import smartsound.view.Action;
+import smartsound.common.IElement.NameValuePair;
 
 
 public class SettingsPanel extends javax.swing.JPanel implements ListDataListener, IGUILadder, MouseListener {
@@ -60,6 +61,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 
 	private final IGUILadder parent;
 	private final UUID playListUUID;
+	/*
 	private final Action randomizeListAction;
 	private final Action randomizeVolumeFromAction;
 	private final Action randomizeVolumeToAction;
@@ -67,7 +69,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 	private final Action fadeInAction;
 	private final Action fadeOutAction;
 	private final Action overlapAction;
-
+	 */
 
 	private final JCheckBox randomizeCheckBox = new JCheckBox();
 	private final JLabel randomizeLabel = new JLabel("Randomize playlist");
@@ -98,7 +100,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		playListDataModel.addListDataListener(this);
 		addMouseListener(this);
 
-
+		/*
 		randomizeListAction = parent.getGUIController().getRandomizeListAction(playListUUID, "Randomize for " + playListUUID);
 		randomizeVolumeFromAction = parent.getGUIController().getRandomizeVolumeFromAction(playListUUID, "Randomize volume minimum for " + playListUUID);
 		randomizeVolumeToAction = parent.getGUIController().getRandomizeVolumeToAction(playListUUID, "Randomize volume maximum for " + playListUUID);
@@ -106,14 +108,14 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		fadeInAction = parent.getGUIController().getFadeInAction(playListUUID, "Set fade in for " + playListUUID);
 		fadeOutAction = parent.getGUIController().getFadeOutAction(playListUUID, "Set fade out for " + playListUUID);
 		overlapAction = parent.getGUIController().getOverlapAction(playListUUID, "Set overlapping for " + playListUUID);
-
+		 */
 
 		randomizeCheckBox.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(final ChangeEvent e) {
 				JCheckBox source = (JCheckBox) e.getSource();
 
-				if (!editing) randomizeListAction.execute(source.isSelected());
+				if (!editing) getGUIController().set(playListUUID, "RANDOMIZE", source.isSelected());
 			}
 		});
 
@@ -125,7 +127,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			public void stateChanged(final ChangeEvent e) {
 				JCheckBox source = (JCheckBox) e.getSource();
 
-				if (!editing) stopAfterEachSoundAction.execute(source.isSelected());
+				if (!editing) getGUIController().set(playListUUID, "STOPAFTEREACHSOUND", source.isSelected());
 			}
 		});
 
@@ -142,7 +144,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 					playAtRandomVolumesSliderTo.setValue(source.getValue());
 				}
 				if (!source.getValueIsAdjusting() && !editing) {
-					randomizeVolumeFromAction.execute(source.getValue() / 100.0f);
+					getGUIController().set(playListUUID, "RANDOMIZEVOLUMEFROM", source.getValue() / 100.0f);
 				}
 			}
 		});
@@ -160,7 +162,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 					playAtRandomVolumesSliderFrom.setValue(source.getValue());
 				}
 				if (!source.getValueIsAdjusting() && !editing) {
-					randomizeVolumeToAction.execute(source.getValue() / 100.0f);
+					getGUIController().set(playListUUID, "RANDOMIZEVOLUMETO", source.getValue() / 100.0f);
 				}
 			}
 		});
@@ -173,7 +175,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			@Override
 			public void stateChanged(final ChangeEvent e) {
 				JSpinner source = (JSpinner) e.getSource();
-				if (!editing) fadeInAction.execute((int) (((Number) source.getValue()).doubleValue()*1000));
+				getGUIController().set(playListUUID, "FADEINTIME", (int) (((Number) source.getValue()).doubleValue()*1000));
 			}
 		});
 		fadeInSpinner.setEditor(new JSpinner.NumberEditor(fadeInSpinner, "0.0 s"));
@@ -186,7 +188,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			@Override
 			public void stateChanged(final ChangeEvent e) {
 				JSpinner source = (JSpinner) e.getSource();
-				if (!editing) fadeOutAction.execute((int) (((Number) source.getValue()).doubleValue()*1000));
+				getGUIController().set(playListUUID, "FADEOUTTIME", (int) (((Number) source.getValue()).doubleValue()*1000));
 			}
 		});
 		fadeOutSpinner.setEditor(new JSpinner.NumberEditor(fadeOutSpinner, "0.0 s"));
@@ -199,7 +201,7 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 			@Override
 			public void stateChanged(final ChangeEvent e) {
 				JSpinner source = (JSpinner) e.getSource();
-				if (!editing) overlapAction.execute((int) (((Number) source.getValue()).doubleValue()*1000));
+				getGUIController().set(playListUUID, "OVERLAPTIME", (int) (((Number) source.getValue()).doubleValue()*1000));
 			}
 		});
 		overlapSpinner.setEditor(new JSpinner.NumberEditor(overlapSpinner, "0.0 s"));
@@ -337,13 +339,27 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 
 	private void refreshValues() {
 		editing = true;
-		randomizeCheckBox.setSelected(parent.getGUIController().isRandomizeList(playListUUID));
-		stopAfterEachSoundCheckBox.setSelected(parent.getGUIController().isStopAfterEachSound(playListUUID));
-		playAtRandomVolumesSliderFrom.setValue((int) (parent.getGUIController().getRandomizeVolumeFrom(playListUUID)*100));
-		playAtRandomVolumesSliderTo.setValue((int) (parent.getGUIController().getRandomizeVolumeTo(playListUUID)*100));
-		fadeInSpinner.setValue(parent.getGUIController().getFadeIn(playListUUID)/1000.0);
-		fadeOutSpinner.setValue(parent.getGUIController().getFadeOut(playListUUID)/1000.0);
-		overlapSpinner.setValue(parent.getGUIController().getOverlap(playListUUID)/1000.0);
+
+		NameValuePair[] pairs = getGUIController()
+				.get(playListUUID, "RANDOMIZE", "STOPAFTEREACHSOUND",
+						"RANDOMIZEVOLUMEFROM", "RANDOMIZEVOLUMETO",
+						"FADEINTIME", "FADEOUTTIME", "OVERLAPTIME");
+		assert pairs.length == 7;
+		assert pairs[0].value instanceof Boolean;
+		assert pairs[1].value instanceof Boolean;
+		assert pairs[2].value instanceof Float;
+		assert pairs[3].value instanceof Float;
+		assert pairs[4].value instanceof Integer;
+		assert pairs[5].value instanceof Integer;
+		assert pairs[6].value instanceof Integer;
+
+		randomizeCheckBox.setSelected((Boolean) pairs[0].value);
+		stopAfterEachSoundCheckBox.setSelected((Boolean) pairs[1].value);
+		playAtRandomVolumesSliderFrom.setValue((int) ((Float) pairs[2].value*100));
+		playAtRandomVolumesSliderTo.setValue((int) ((Float) pairs[3].value*100));
+		fadeInSpinner.setValue((Integer) pairs[4].value/1000.0);
+		fadeOutSpinner.setValue((Integer) pairs[5].value/1000.0);
+		overlapSpinner.setValue((Integer) pairs[6].value/1000.0);
 		editing = false;
 	}
 
@@ -436,7 +452,12 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 		JPopupMenu popup = new JPopupMenu();
 		JMenu hotkeyMenu = new JMenu("Hotkeys");
 		popup.add(hotkeyMenu);
-		final String title = getGUIController().getTitle(playListUUID);
+
+		NameValuePair[] pairs = getGUIController().get(playListUUID, "NAME");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof String;
+
+		final String title = (String) pairs[0].value;
 		List<JMenuItem> itemList = new LinkedList<JMenuItem>();
 
 		hotkeyMenu.add(new TitledSeparator("Add hotkeys", false));
@@ -447,29 +468,43 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 					public void actionPerformed(final ActionEvent arg0) {
 						KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 						Object obj = UserInput.getInput(SettingsPanel.this, "Turn on", "Turn off");
-						parent.getGUIController().setHotkey(playListUUID, e, randomizeListAction.specialize(obj + " randomizing for '" + title + "'","Turn on".equals(obj)));
+						Map<String, Object> values = new HashMap<String, Object>();
+						values.put("RANDOMIZE", "Turn on".equals(obj));
+						parent.getGUIController().addSetHotkey(e, playListUUID, values);
 					}
 
 				}));
 
+		/*
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(randomizeListAction)) {
-			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), getGUIController()));
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), tuple.first, playListUUID, getGUIController()));
 		}
+		 */
 
 		hotkeyMenu.add(new AddMenuItem(
 				new AbstractAction("Set randomize volume (minimum)") {
 					@Override
 					public void actionPerformed(final ActionEvent arg0) {
 						KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
-						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 100.0d, 1.0d, (int) (getGUIController().getRandomizeVolumeFrom(playListUUID) * 100.0));
-						if (value != null)
-							parent.getGUIController().setHotkey(playListUUID, e, randomizeVolumeFromAction.specialize("Set minimum of randomize volume for '" + title + "' to " + value + "%", (float) (value / 100.0d)));
+
+						NameValuePair[] pairs = getGUIController().get(playListUUID, "RANDOMIZEVOLUMEFROM");
+						assert pairs.length == 1;
+						assert pairs[0].value instanceof Float;
+
+						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 100.0d, 1.0d, (int) ((Float) pairs[0].value * 100.0));
+						if (value != null) {
+							Map<String, Object> values = new HashMap<String, Object>();
+							values.put("RANDOMIZEVOLUMEFROM", (float) (value / 100.0d));
+							parent.getGUIController().addSetHotkey(e, playListUUID, values);
+						}
 					}
 				}));
 
+		/*
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(randomizeVolumeFromAction)) {
-			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), getGUIController()));
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), tuple.first, playListUUID, getGUIController()));
 		}
+		 */
 
 
 		hotkeyMenu.add(new AddMenuItem(
@@ -477,15 +512,25 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 					@Override
 					public void actionPerformed(final ActionEvent arg0) {
 						KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
-						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 100.0d, 1.0d, (int) (getGUIController().getRandomizeVolumeTo(playListUUID) * 100.0));
-						if (value != null)
-							parent.getGUIController().setHotkey(playListUUID, e, randomizeVolumeToAction.specialize("Set maximum of randomize volume for '" + title + "' to " + value + "%", (float) (value / 100.0d)));
+
+						NameValuePair[] pairs = getGUIController().get(playListUUID, "RANDOMIZEVOLUMETO");
+						assert pairs.length == 1;
+						assert pairs[0].value instanceof Float;
+
+						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 100.0d, 1.0d, (int) ((Float) pairs[0].value * 100.0));
+						if (value != null) {
+							Map<String, Object> values = new HashMap<String, Object>();
+							values.put("RANDOMIZEVOLUMETO", (float) (value / 100.0d));
+							parent.getGUIController().addSetHotkey(e, playListUUID, values);
+						}
 					}
 				}));
 
+		/*
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(randomizeVolumeToAction)) {
-			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), getGUIController()));
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), tuple.first, playListUUID, getGUIController()));
 		}
+		 */
 
 		hotkeyMenu.add(new AddMenuItem(
 				new AbstractAction("Set stop after each sound") {
@@ -493,58 +538,92 @@ public class SettingsPanel extends javax.swing.JPanel implements ListDataListene
 					public void actionPerformed(final ActionEvent arg0) {
 						KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
 						Object obj = UserInput.getInput(SettingsPanel.this, "Turn on", "Turn off");
-						parent.getGUIController().setHotkey(playListUUID, e, stopAfterEachSoundAction.specialize(obj + " stopping after each sound for '" + title + "'", "Turn on".equals(obj)));
+						Map<String, Object> values = new HashMap<String, Object>();
+						values.put("STOPAFTEREACHSOUND", "Turn on".equals(obj));
+						parent.getGUIController().addSetHotkey(e, playListUUID, values);
 					}
 				}));
 
+		/*
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(stopAfterEachSoundAction)) {
-			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), getGUIController()));
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), tuple.first, playListUUID, getGUIController()));
 		}
+		 */
 
 		hotkeyMenu.add(new AddMenuItem(
 				new AbstractAction("Set fade in") {
 					@Override
 					public void actionPerformed(final ActionEvent arg0) {
 						KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
-						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) (getGUIController().getFadeIn(playListUUID) / 1000.0));
-						if (value != null)
-							parent.getGUIController().setHotkey(playListUUID, e, fadeInAction.specialize("Set fade in time for '" + title + "' to " + value + "s", (int) (value * 1000)));
+
+						NameValuePair[] pairs = getGUIController().get(playListUUID, "FADEINTIME");
+						assert pairs.length == 1;
+						assert pairs[0].value instanceof Integer;
+
+						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) ((Integer) pairs[0].value / 1000.0));
+						if (value != null) {
+							Map<String, Object> values = new HashMap<String, Object>();
+							values.put("FADEINTIME", (int) (value * 1000));
+							parent.getGUIController().addSetHotkey(e, playListUUID, values);
+						}
 					}
 				}));
 
+		/*
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(fadeInAction)) {
-			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), getGUIController()));
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), tuple.first, playListUUID, getGUIController()));
 		}
+		 */
 
 		hotkeyMenu.add(new AddMenuItem(
 				new AbstractAction("Set fade out") {
 					@Override
 					public void actionPerformed(final ActionEvent arg0) {
 						KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
-						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) (getGUIController().getFadeOut(playListUUID) / 1000.0));
-						if (value != null)
-							parent.getGUIController().setHotkey(playListUUID, e, fadeOutAction.specialize("Set fade out time for '" + title + "' to " + value  + "s",(int) (value * 1000)));
+
+						NameValuePair[] pairs = getGUIController().get(playListUUID, "FADEOUTTIME");
+						assert pairs.length == 1;
+						assert pairs[0].value instanceof Integer;
+
+						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) ((Integer) pairs[0].value / 1000.0));
+						if (value != null) {
+							Map<String, Object> values = new HashMap<String, Object>();
+							values.put("FADEOUTTIME", (int) (value * 1000));
+							parent.getGUIController().addSetHotkey(e, playListUUID, values);
+						}
 					}
 				}));
 
+		/*
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(fadeOutAction)) {
-			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), getGUIController()));
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), tuple.first, playListUUID, getGUIController()));
 		}
+		 */
 
 		hotkeyMenu.add(new AddMenuItem(
 				new AbstractAction("Set overlap") {
 					@Override
 					public void actionPerformed(final ActionEvent arg0) {
 						KeyEvent e = new HotkeyDialog(SwingUtilities.getWindowAncestor(SettingsPanel.this)).getEvent(); if (e.getKeyCode() == KeyEvent.VK_ESCAPE) return;
-						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) (getGUIController().getOverlap(playListUUID) / 1000.0));
-						if (value != null)
-							parent.getGUIController().setHotkey(playListUUID, e, overlapAction.specialize("Set overlap time for '" + title + "' to " + value  + "s", (int) (value * 1000)));
+
+						NameValuePair[] pairs = getGUIController().get(playListUUID, "OVERLAPTIME");
+						assert pairs.length == 1;
+						assert pairs[0].value instanceof Integer;
+
+						Double value = UserInput.getInput(SettingsPanel.this, 0.0d, 9.9d, 0.1d, (int) ((Integer) pairs[0].value / 1000.0));
+						if (value != null) {
+							Map<String, Object> values = new HashMap<String, Object>();
+							values.put("OVERLAPTIME", (int) (value * 1000));
+							parent.getGUIController().addSetHotkey(e, playListUUID, values);
+						}
 					}
 				}));
 
+		/*
 		for (Tuple<String,Action> tuple : getGUIController().getHotkeys(overlapAction)) {
-			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), getGUIController()));
+			itemList.add(new RemoveHotkeyMenuItem(tuple.second, tuple.second.getDescription(), tuple.first, playListUUID, getGUIController()));
 		}
+		 */
 
 		if (!itemList.isEmpty()) {
 			hotkeyMenu.add(new TitledSeparator("Remove hotkeys", true));

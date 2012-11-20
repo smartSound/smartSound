@@ -23,15 +23,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import smartsound.common.IAddObserver;
+import smartsound.common.IElement;
 import smartsound.common.IObserver;
-import smartsound.common.Observable;
 import smartsound.common.PropertyMap;
-import smartsound.player.ItemData;
 import smartsound.player.LoadingException;
-import smartsound.player.PlayList;
-import smartsound.player.PlayListItem;
 import smartsound.player.PlayListSet;
-import smartsound.player.PlayListSetElement;
 import smartsound.view.AbstractViewController;
 import smartsound.view.ViewController;
 import smartsound.view.gui.GUIController;
@@ -42,12 +39,15 @@ import smartsound.view.gui.GUIController;
  * @author André Becker
  *
  */
-public class DefaultController extends AbstractController {
+public class DefaultController extends AbstractController implements IElement {
 
 	private final UUID controllerUUID = UUID.randomUUID();
 	private final AbstractViewController viewController;
 	private final Map<UUID, PlayListSet> rootPlayListSets = new HashMap<UUID, PlayListSet>();
+	private final List<IAddObserver> addObservers = new LinkedList<IAddObserver>();
 	private UUID activeSet = null;
+	private float mainVolume = 1.0f;
+	private boolean autoPlay = false;
 
 	/**
 	 * 
@@ -55,524 +55,25 @@ public class DefaultController extends AbstractController {
 	 * 	elements.
 	 */
 	public DefaultController() {
+		ElementManager.add(this);
 		viewController = new ViewController(this);
 		viewController.addGUI(new GUIController(viewController));
-		UUID set = addPlayListSet(null);
+		UUID set = ElementManager.add(null, "PLAYLISTSET");
 		setActive(set);
 	}
 
 	@Override
-	public void addObserver(final IObserver observer, final UUID uuid) {
-		if (uuid == null) {
-			addObserver(observer);
-			return;
-		}
-		PlayListSetElement element = getElement(uuid);
-		if (element instanceof Observable) {
-			((Observable) element).addObserver(observer);
-		}
-	}
-
-	@Override
-	public ItemData getItemData(final UUID playListUUID, final int index) {
-		PlayList playList = getPlayList(playListUUID);
-
-		if (playList == null) {
-			//TODO: Exception
-			return null;
-		}
-		return new ItemData(this, playListUUID, playList.UUIDfromIndex(index));
-	}
-
-	private PlayList getPlayList(final UUID playListUUID) {
-		PlayList playList = null;
-
-		for (PlayListSet set : rootPlayListSets.values()) {
-			playList = set.getPlayList(playListUUID);
-			if (playList != null)
-				break;
-		}
-
-		return playList;
-	}
-
-	private PlayListSet getPlayListSet(final UUID playListSetUUID) {
-		PlayListSet set = rootPlayListSets.get(playListSetUUID);
-
-		if (set == null)
-			for (PlayListSet s : rootPlayListSets.values()) {
-				set = s.getPlayListSet(playListSetUUID);
-				if (set != null)
-					break;
-			}
-
-		return set;
-	}
-
-	@Override
-	public int getSize(final UUID playListUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return -1;
-		}
-		return playList.getSize();
-	}
-
-	@Override
-	public void addItem(final UUID playListUUID, final int index, final String filePath) {
-		if (index == -1) {
-			addItem(playListUUID, filePath);
-			return;
-		}
-
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.add(index, filePath);
-	}
-
-	@Override
-	public void addItem(final UUID playListUUID, final String filePath) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.add(filePath);
-	}
-
-	@Override
-	public void removeItem(final UUID playListUUID, final int index, final boolean stop) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.remove(index, stop);
-	}
-
-	@Override
-	public void play(final UUID playListUUID, final int index) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.play(index);
-
-		setActive(getRootParent(playListUUID));
-		stopOthers(playListUUID);
-	}
-
-	@Override
-	public void play(final UUID playListUUID) {
-		PlayListSetElement element = getPlayList(playListUUID);
-		element = (element != null) ? element : getPlayListSet(playListUUID);
-		element.play();
-
-		stopOthers(playListUUID);
-		setActive(getRootParent(playListUUID));
-	}
-
-	@Override
-	public int getItemIndex(final UUID playListUUID, final UUID itemUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return -1;
-		}
-		return playList.getEntryIndex(itemUUID);
-	}
-
-	private void stopOthers(final UUID uuid) {
-		UUID rootParent = getRootParent(uuid);
-
-		for (PlayListSet set : rootPlayListSets.values()) {
-			if (!set.getUUID().equals(rootParent))
-				set.stop();
-		}
-	}
-
-	@Override
-	public UUID getRootParent(final UUID uuid) {
-		UUID current = uuid;
-		UUID parent = getParent(uuid);
-		while (parent != null) {
-			current = parent;
-			parent = getParent(current);
-		}
-		return current;
-	}
-
-	@Override
-	public void stop(final UUID playListUUID) {
-		PlayListSetElement element = getElement(playListUUID);
-		if (element != null)
-			element.stop();
-	}
-
-	private PlayListSetElement getElement(final UUID uuid) {
-		PlayListSetElement element = getPlayList(uuid);
-		return element != null ? element : getPlayListSet(uuid);
-	}
-	@Override
-	public UUID addPlayList(final UUID parentSet) {
-		if (getPlayListSet(parentSet) == null)
-			return null;
-
-		PlayList playList = new PlayList();
-		addPlayList(parentSet, playList);
-
-		return playList.getUUID();
-	}
-
-	private void addPlayList(final UUID parentSet, final PlayList playList) {
-		PlayListSet set = getPlayListSet(parentSet);
-		if (set == null)
-			return;
-
-		set.addPlayList(playList);
-
-		playList.addObserver(this);
-		//newPlayList(playList.getUUID());
-	}
-
-	@Override
-	public void deletePlayList(final UUID playListUUID) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void importItems(final UUID sourcePlayListUUID, final List<UUID> itemUUIDs,
-			final UUID targetPlayListUUID, final int targetIndex, final boolean copy) {
-		Map<UUID, UUID> uuidMap = new HashMap<UUID, UUID>();
-		PlayList sourcePlayList = getPlayList(sourcePlayListUUID);
-		PlayList targetPlayList = getPlayList(targetPlayListUUID);
-		if (sourcePlayList == null || targetPlayList == null) {
-			//TODO: Exception
-			return;
-		}
-
-		int i;
-		if (targetIndex > -1) {
-			i = targetIndex;
-		} else {
-			i = targetPlayList.getSize();
-		}
-
-		int shift = 0;
-		List<PlayListItem> playListItemList = new LinkedList<PlayListItem>();
-		for (UUID uuid: itemUUIDs) {
-			playListItemList.add(sourcePlayList.getPlayListItem(uuid));
-		}
-
-		if (sourcePlayList == targetPlayList) {
-			for (UUID uuid: itemUUIDs) {
-				if (sourcePlayList.getEntryIndex(uuid) <= i) {
-					shift += 1;
-				}
-			}
-		}
-
-		PlayListItem playListItem;
-
-		boolean removeChaining = sourcePlayList != targetPlayList;
-		if (!copy) {
-
-			for (UUID itemUUID : itemUUIDs) {
-				sourcePlayList.remove(itemUUID, false, removeChaining);
-			}
-			if (sourcePlayList == targetPlayList) {
-				for (int j = 0; j < sourcePlayList.getSize(); j++) {
-					playListItem = sourcePlayList.getEntryAt(j);
-					if (playListItem.getChainWith() != null && uuidMap.containsKey(playListItem.getChainWith())) {
-						playListItem.setChainWith(uuidMap.get(playListItem.getChainWith()));
-					}
-				}
-			}
-
-		}
-
-		PlayListItem newPlayListItem;
-		for (PlayListItem item : playListItemList) {
-			newPlayListItem = new PlayListItem(item, !copy);
-			targetPlayList.add(i++ - shift, newPlayListItem);
-			if (!copy) {
-				uuidMap.put(item.getUUID(), newPlayListItem.getUUID());
-				item.dispose();
-			}
-		}
-	}
-
-	@Override
-	public boolean itemIsActive(final UUID playListUUID, final UUID itemUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return false;
-		}
-		return playList.itemIsActive(itemUUID);
-	}
-
-	@Override
-	public String getItemName(final UUID playListUUID, final UUID itemUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return null;
-		}
-		return playList.getItemName(itemUUID);
-	}
-
-	@Override
-	public UUID getItemChainWith(final UUID playListUUID, final UUID itemUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return null;
-		}
-		return playList.getItemChainWith(itemUUID);
-	}
-
-	@Override
-	public void setItemChainWith(final UUID playListUUID, final UUID itemUUID,
-			final UUID chainWith) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setItemChainWith(itemUUID, chainWith);
-	}
-
-	@Override
-	public boolean itemIsRepeating(final UUID playListUUID, final UUID itemUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return false;
-		}
-		return playList.itemIsRepeating(itemUUID);
-	}
-
-	@Override
-	public void setItemIsRepeating(final UUID playListUUID, final UUID itemUUID,
-			final boolean isRepeating) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setItemIsRepeating(itemUUID, isRepeating);
-	}
-
-	@Override
-	public boolean isRepeatList(final UUID playListUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return false;
-		}
-		return playList.isRepeatList();
-	}
-
-	@Override
-	public void setRepeatList(final UUID playListUUID, final boolean repeat) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setRepeatList(repeat);
-	}
-
-	@Override
-	public boolean isRandomizeList(final UUID playListUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return false;
-		}
-		return playList.isRandomizeList();
-	}
-
-	@Override
-	public void setRandomizeList(final UUID playListUUID, final boolean randomize) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setRandomizeList(randomize);
-
-	}
-
-	@Override
-	public void setRandomizeVolumeFrom(final UUID playListUUID, final float from) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setRandomizeVolumeFrom(from);
-	}
-
-	@Override
-	public void setRandomizeVolumeTo(final UUID playListUUID, final float to) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setRandomizeVolumeTo(to);
-	}
-
-	@Override
-	public void setStopAfterEachSound(final UUID playListUUID,
-			final boolean stopAfterEachSound) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setStopAfterEachSound(stopAfterEachSound);
-	}
-
-	@Override
-	public void setFadeIn(final UUID playListUUID, final int fadeIn) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setFadeInLength(fadeIn);
-	}
-
-	@Override
-	public void setFadeOut(final UUID playListUUID, final int fadeOut) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setFadeOutLength(fadeOut);
-	}
-
-	@Override
-	public void setOverlap(final UUID playListUUID, final int overlap) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return;
-		}
-		playList.setOverlapTime(overlap);
-	}
-
-	@Override
-	public boolean isStopAfterEachSound(final UUID playListUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return false;
-		}
-		return playList.isStopAfterEachSound();
-	}
-
-	@Override
-	public float getRandomizeVolumeFrom(final UUID playListUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return -1;
-		}
-		return playList.getRandomizeVolumeFrom();
-	}
-
-	@Override
-	public float getRandomizeVolumeTo(final UUID playListUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return -1;
-		}
-		return playList.getRandomizeVolumeTo();
-	}
-
-	@Override
-	public int getFadeIn(final UUID playListUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return -1;
-		}
-		return playList.getFadeInLength();
-	}
-
-	@Override
-	public int getFadeOut(final UUID playListUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return -1;
-		}
-		return playList.getFadeOutLength();
-	}
-
-	@Override
-	public int getOverlap(final UUID playListUUID) {
-		PlayList playList = getPlayList(playListUUID);
-		if (playList == null) {
-			//TODO: Exception
-			return -1;
-		}
-		return playList.getOverlapTime();
-	}
-
-	@Override
-	public void setVolume(final UUID playListUUID, final float volume) {
-		PlayListSetElement element = getElement(playListUUID);
-		if (element == null) {
-			//TODO: Exception
-			return;
-		}
-		element.setVolume(volume);
-	}
-
-	@Override
-	public float getVolume(final UUID playListUUID) {
-		PlayListSetElement element = getElement(playListUUID);
-		if (element == null) {
-			//TODO: Exception
-			return -1;
-		}
-		return element.getVolume();
-	}
-
-	@Override
 	public void save(final String savePath) {
-		PropertyMap map = new PropertyMap(controllerUUID);
-
-		for (PlayListSet set : rootPlayListSets.values()) {
-			map.addPropertyMap(set.getPropertyMap());
-		}
-
-		map.addPropertyMap(viewController.getPropertyMap());
-
-		map.saveToIni(savePath);
+		getPropertyMap().saveToIni(savePath);
 	}
 
 	@Override
 	public void load(final String loadPath) {
 
 		for (PlayListSet set : rootPlayListSets.values()) {
-			set.stop();
-			set.dispose();
+			set.remove();
 		}
-		rootPlayListSets.clear();
+		assert rootPlayListSets.isEmpty();
 
 
 		PropertyMap map = new PropertyMap(loadPath);
@@ -581,9 +82,10 @@ public class DefaultController extends AbstractController {
 		try {
 			for (PropertyMap pMap : map.getNestedMaps()) {
 				if (pMap.get("type").equals(PlayListSet.class.getCanonicalName())) {
-					set = new PlayListSet(pMap);
-					addPlayListSet(null, set);
-					if (firstSet) {
+					set = new PlayListSet(pMap, this);
+					rootPlayListSets.put(set.getUUID(), set);
+					ElementManager.add(set);
+					if (firstSet) { //TODO: Check concerning autoplay
 						firstSet = false;
 						activeSet = set.getUUID();
 					}
@@ -598,153 +100,190 @@ public class DefaultController extends AbstractController {
 		viewController.reloadView();
 	}
 
-	@Override
-	public List<UUID> getPlayListUUIDs(final UUID parentSetUUID) {
-		List<UUID> result = new LinkedList<UUID>();
-		PlayListSet set = getPlayListSet(parentSetUUID);
-
-		if (set == null)
-			return null;
-
-		for (PlayList pList : set.getNestedPlayLists()) {
-			result.add(pList.getUUID());
-		}
-
-		return result;
+	protected List<UUID> getPlayListSetUUIDs() {
+		return new LinkedList<UUID>(rootPlayListSets.keySet());
 	}
 
-	@Override
-	public List<UUID> getPlayListSetUUIDs(final UUID parentSetUUID) {
-		if (parentSetUUID == null) {
-			return new LinkedList<UUID>(rootPlayListSets.keySet());
-		}
-		PlayListSet set = rootPlayListSets.get(parentSetUUID);
-		List<PlayListSet> currentList = new LinkedList<PlayListSet>(rootPlayListSets.values());
-		List<PlayListSet> nextList = new LinkedList<PlayListSet>();
-		while (set == null) {
-			if (currentList.isEmpty()) {
-				break;
-			}
-			for (PlayListSet currentSet : currentList) {
-				if (currentSet.getUUID().equals(parentSetUUID)) {
-					set = currentSet;
-					break;
-				}
-				nextList.add(currentSet);
-			}
-			currentList = new LinkedList<PlayListSet>(nextList);
-		}
 
-		if (set == null)
-			return null;
-
-		List<UUID> result = new LinkedList<UUID>();
-		for (PlayListSet list : set.getNestedSets()) {
-			result.add(list.getUUID());
-		}
-		return result;
-	}
-
-	@Override
-	public String getTitle(final UUID uuid) {
-		PlayListSetElement elem = getPlayListSet(uuid);
-		elem = elem == null ? getPlayList(uuid) : elem;
-
-		return elem == null ? null : elem.getName();
-	}
-
-	@Override
-	public UUID addPlayListSet(final UUID parentSetUUID) {
-		PlayListSet newSet = new PlayListSet();
-		addPlayListSet(parentSetUUID, newSet);
-		addPlayList(newSet.getUUID());
-
-		return newSet.getUUID();
-	}
-
-	private void addPlayListSet(final UUID parentSetUUID, final PlayListSet playListSet) {
-		if (parentSetUUID == null) {
-			rootPlayListSets.put(playListSet.getUUID(), playListSet);
-			update();
-		} else {
-			for (PlayListSet set : rootPlayListSets.values()) {
-				if (set.addPlayList(parentSetUUID, playListSet))
-					break;
-			}
-		}
-	}
-
-	@Override
-	public UUID getParent(final UUID child) {
-		if (rootPlayListSets.containsKey(child))
-			return null;
-
-		UUID result = null;
-
-		for (PlayListSetElement element : rootPlayListSets.values()) {
-			result = element.getParent(child);
-			if (result != null)
-				return result;
-		}
-
-		return null;
-	}
-
-	@Override
-	public void setTitle(final UUID uuid, final String newTitle) {
-		PlayListSetElement element = getPlayList(uuid);
-		element = (element != null) ? element : getPlayListSet(uuid);
-		if (element == null)
-			return;
-
-		element.setName(newTitle);
-	}
-
-	@Override
-	public void remove(final UUID uuid) {
-		UUID parentUUID = getParent(uuid);
-		if (parentUUID == null) {
-			rootPlayListSets.remove(uuid);
-			update();
-		} else {
-			PlayListSetElement parent = getElement(parentUUID);
-			parent.remove(uuid);
-			parent.update();
-		}
-
-	}
-
+	//TODO: ??
 	@Override
 	public void update(final UUID arg0) {
 		// TODO Auto-generated method stub
 
 	}
 
-	@Override
-	public boolean isActive(final UUID elementUUID) {
-		return elementUUID != null ? elementUUID.equals(activeSet) : false;
+	//TODO: Needed?
+	protected void setActive(final UUID playListSetUUID) {
+		activeSet = playListSetUUID;
 	}
 
+
 	@Override
-	public void setAutoplay(final UUID elementUUID, final boolean autoplay) {
-		PlayListSetElement element = getElement(elementUUID);
-		if (element != null) {
-			element.setAutoPlay(autoplay);
+	public IElement add(final String elementType, final Object... params) {
+		switch (elementType) {
+		case "PLAYLISTSET":
+			PlayListSet set = new PlayListSet(this);
+			rootPlayListSets.put(set.getUUID(), set);
+			ElementManager.add(set);
+			notifyAddObservers(set.getUUID());
+			return set;
+		case "ADDOBSERVER":
+			assert params.length == 1;
+			assert params[0] instanceof IAddObserver;
+			addObservers.add((IAddObserver) params[0]);
+			fullUpdate((IAddObserver) params[0]);
+			break;
+		}
+		return null;
+	}
+
+	private void fullUpdate(final IAddObserver obs) {
+		for (UUID uuid : rootPlayListSets.keySet()) {
+			obs.elementAdded(null, uuid);
+		}
+	}
+
+	private void notifyAddObservers(final UUID newUUID) {
+		for (IAddObserver obs : addObservers) {
+			obs.elementAdded(null, newUUID);
 		}
 	}
 
 	@Override
-	public boolean getAutoplay(final UUID elementUUID) {
-		PlayListSetElement element = getElement(elementUUID);
-		if (element != null) {
-			return element.getAutoPlay();
+	public void remove() {
+		//TODO: Implement shutdown
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	protected Object get(final String propertyName) {
+		switch (propertyName) {
+		case "PLAYLISTSETS":
+			return getPlayListSetUUIDs();
+		case "ACTIVESET":
+			for (PlayListSet set : rootPlayListSets.values()) {
+				if (set.isActive())
+					return set.getUUID();
+			}
+			return null;
+		default:
+			return super.get(propertyName);
+		}
+	}
+
+	@Override
+	protected void act(final String actionType) {
+		switch(actionType) {
+		default:
+			super.act(actionType);
+		}
+	}
+
+	@Override
+	protected void set(final String propertyName, final Object value) {
+		switch (propertyName) {
+		default:
+			super.set(propertyName, value);
+		}
+	}
+
+	//TODO: Needed?
+	@Override
+	public void addObserver(final IObserver observer, final UUID uuid) {
+		// TODO Auto-generated method stub
+	}
+
+	@Override
+	public void dispose() {
+		// TODO needed?
+
+	}
+
+	@Override
+	protected String getName() {
+		return "ROOT";
+	}
+
+	@Override
+	protected float getVolume() {
+		return this.mainVolume;
+	}
+
+	@Override
+	protected void setVolume(final float volume) {
+		this.mainVolume = volume;
+	}
+
+	@Override
+	protected void setParentVolume(final float volume) {
+		//Do nothing, no parent existing.
+		return;
+	}
+
+	@Override
+	public void play() {
+		for (PlayListSet pls : rootPlayListSets.values()) {
+			if (pls.getAutoPlay()) {
+				pls.play();
+				return;
+			}
+		}
+	}
+
+	@Override
+	protected boolean getAutoPlay() {
+		return autoPlay;
+	}
+
+	@Override
+	protected void setAutoPlay(final boolean autoPlay) {
+		this.autoPlay = autoPlay;
+	}
+
+	@Override
+	protected boolean isActive() {
+		for (PlayListSet pls : rootPlayListSets.values()) {
+			if (pls.isActive())
+				return true;
 		}
 		return false;
 	}
 
 	@Override
-	public void setActive(final UUID playListSetUUID) {
-		activeSet = playListSetUUID;
+	public void pause() {
+		for (PlayListSet pls: rootPlayListSets.values()) {
+			pls.pause();
+		}
+	}
+
+	@Override
+	public void stop() {
+		for (PlayListSet pls: rootPlayListSets.values()) {
+			pls.stop();
+		}
+	}
+
+	@Override
+	protected void setName(final String name) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public PropertyMap getPropertyMap() {
+		PropertyMap map = new PropertyMap(controllerUUID);
+
+		for (PlayListSet set : rootPlayListSets.values()) {
+			map.addPropertyMap(set.getPropertyMap());
+		}
+
+		map.addPropertyMap(viewController.getPropertyMap());
+
+		return map;
+	}
+
+	@Override
+	protected void notifyChangeObservers(final String... propertyNames) {
+		// TODO: Do nothing?
 	}
 
 }

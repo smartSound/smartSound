@@ -19,6 +19,7 @@ package smartsound.view.gui;
 
 import java.awt.Image;
 import java.awt.event.ActionEvent;
+import java.util.UUID;
 
 import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
@@ -32,14 +33,16 @@ public class RemoveHotkeyMenuItem extends JMenuItem {
 
 	protected Action action;
 	protected GUIController controller;
+	protected String hotkeyString;
 
-	public RemoveHotkeyMenuItem(final Action action, final String description, final GUIController con) {
+	public RemoveHotkeyMenuItem(final Action action, final String description, final String hotkeyString, final UUID elementUUID, final GUIController con) {
 		super(new AbstractAction(description) {
 			@Override
 			public void actionPerformed(final ActionEvent arg0) {
-				con.removeHotkey(action);
+				con.removeHotkey(elementUUID, hotkeyString, action);
 			}
 		});
+		this.hotkeyString = hotkeyString;
 		this.controller = con;
 		this.action = action;
 		Image img = IconManager.getImage(IconType.REMOVE);

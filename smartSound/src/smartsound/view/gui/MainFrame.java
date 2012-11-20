@@ -20,9 +20,12 @@ package smartsound.view.gui;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
 
 import javax.swing.JFrame;
 import javax.swing.JPopupMenu;
+
+import smartsound.settings.Global;
 
 public class MainFrame extends JFrame implements IGUILadder {
 
@@ -67,9 +70,23 @@ public class MainFrame extends JFrame implements IGUILadder {
 
 	@Override
 	public void updateMinimumSize() {
+		boolean resize = true;
+		try {
+			resize = Global.getInstance().getProperty("resize_automatically").toLowerCase().equals("true");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.out.println(resize);
+		
 		setMinimumSize(getComponent(0).getMinimumSize());
-		if ((getExtendedState() & JFrame.MAXIMIZED_BOTH) != JFrame.MAXIMIZED_BOTH && !getSize().equals(getMinimumSize()))
-			setSize(getMinimumSize());
+		if ((getExtendedState() & JFrame.MAXIMIZED_BOTH) != JFrame.MAXIMIZED_BOTH && !getSize().equals(getMinimumSize())) {
+			if (getMinimumSize().width < getSize().width && getMinimumSize().height < getSize().height) {
+				if (resize)
+					setSize(getMinimumSize());
+			} else {
+				setSize(getMinimumSize());
+			}
+		}
 
 	}
 

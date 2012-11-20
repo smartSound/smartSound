@@ -25,8 +25,9 @@ import java.util.UUID;
 import javax.swing.ListModel;
 import javax.swing.event.ListDataListener;
 
+import smartsound.common.IElement.NameValuePair;
 import smartsound.common.IObserver;
-import smartsound.player.ItemData;
+import smartsound.view.LayoutManager;
 
 public class PlayListDataModel implements ListModel<ItemData>, IObserver {
 
@@ -35,9 +36,9 @@ public class PlayListDataModel implements ListModel<ItemData>, IObserver {
 	private final List<ListDataListener> listeners;
 
 	public PlayListDataModel(final GUIController controller,
-			final UUID playListUUID) {
+			final UUID layoutUUID) {
 		listeners = new LinkedList<ListDataListener>();
-		this.playListUUID = playListUUID;
+		this.playListUUID = (UUID) LayoutManager.get(layoutUUID, "ELEMENTUUID").get("ELEMENTUUID");
 		this.controller = controller;
 		controller.addObserver(this, playListUUID);
 	}
@@ -50,12 +51,33 @@ public class PlayListDataModel implements ListModel<ItemData>, IObserver {
 
 	@Override
 	public ItemData getElementAt(final int index) {
-		return controller.getItemData(playListUUID, index);
+		NameValuePair[] pairs = controller.get(playListUUID, "PLAYLISTITEMS");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof List<?>;
+
+		boolean allUUIDs = true;
+		List<?> list = (List<?>) pairs[0].value;
+		for (Object o : list) {
+			if (!(o instanceof UUID)) {
+				allUUIDs = false;
+				break;
+			}
+		}
+
+		assert allUUIDs;
+
+		UUID uuid = (UUID) list.get(index);
+
+		return new ItemData(uuid, controller);
 	}
 
 	@Override
 	public int getSize() {
-		return controller.getSize(playListUUID);
+		NameValuePair[] pairs = controller.get(playListUUID,  "SIZE");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof Integer;
+
+		return (Integer) pairs[0].value;
 	}
 
 	@Override
@@ -64,15 +86,15 @@ public class PlayListDataModel implements ListModel<ItemData>, IObserver {
 	}
 
 	public void remove(final int index, final boolean stop) {
-		controller.removeItem(playListUUID, index, stop);
+		controller.remove(getElementAt(index).getUUID());
 	}
 
 	public void add(final int index, final String filePath) {
-		controller.addItem(playListUUID, index, filePath);
+		controller.add(playListUUID, "PLAYLISTITEM", filePath, index);
 	}
 
 	public void add(final String filePath) {
-		controller.addItem(playListUUID, getSize(), filePath);
+		controller.add(playListUUID, "PLAYLISTITEM", filePath, getSize());
 	}
 
 	public void addAll(final int index, final List<String> filePathList) {
@@ -108,7 +130,11 @@ public class PlayListDataModel implements ListModel<ItemData>, IObserver {
 	}
 
 	public int getIndexFromUuid(final UUID itemUUID) {
-		return controller.getItemIndex(playListUUID, itemUUID);
+		NameValuePair[] pairs = controller.get(itemUUID, "INDEX");
+		assert pairs.length == 0;
+		assert pairs[0].value instanceof Integer;
+
+		return (Integer) pairs[0].value;
 	}
 
 	public UUID getUUID() {
@@ -118,43 +144,83 @@ public class PlayListDataModel implements ListModel<ItemData>, IObserver {
 	public void importItems(final UUID sourcePlayListUUID,
 			final List<UUID> itemUUIDs, final int targetIndex,
 			final boolean copy) {
-		controller.importItems(sourcePlayListUUID, itemUUIDs, playListUUID,
-				targetIndex, copy);
+
+		controller.add(getUUID(), "PLAYLISTITEM", itemUUIDs, targetIndex, copy);
 	}
 
 	public boolean isRepeatList() {
-		return controller.isRepeatList(playListUUID);
+		NameValuePair[] pairs = controller.get(getUUID(), "REPEAT");
+		assert pairs.length == 0;
+		assert pairs[0].value instanceof Boolean;
+
+		return (Boolean) pairs[0].value;
 	}
 
 	public boolean isRandomizeList() {
-		return controller.isRandomizeList(playListUUID);
+		NameValuePair[] pairs = controller.get(getUUID(), "RANDOMIZE");
+		assert pairs.length == 0;
+		assert pairs[0].value instanceof Boolean;
+
+		return (Boolean) pairs[0].value;
 	}
 
 	public void setChainWith(final UUID source, final UUID target) {
-		controller.getItemChainWithAction(playListUUID, source, "Chain with item action").execute(target);
+		controller.set(source, "CHAINEDWITH", target);
 	}
 
 	public float getRandomizeVolumeFrom() {
-		return controller.getRandomizeVolumeFrom(playListUUID);
+		NameValuePair[] pairs = controller.get(getUUID(), "RANDOMIZEVOLUMEFROM");
+		assert pairs.length == 0;
+		assert pairs[0].value instanceof Float;
+
+		return (Float) pairs[0].value;
 	}
 
 	public float getRandomizeVolumeTo() {
-		return controller.getRandomizeVolumeTo(playListUUID);
+		NameValuePair[] pairs = controller.get(getUUID(), "RANDOMIZEVOLUMETO");
+		assert pairs.length == 0;
+		assert pairs[0].value instanceof Float;
+
+		return (Float) pairs[0].value;
 	}
 
 	public int getFadeIn() {
-		return controller.getFadeIn(playListUUID);
+		NameValuePair[] pairs = controller.get(getUUID(), "FADEINTIME");
+		assert pairs.length == 0;
+		assert pairs[0].value instanceof Integer;
+
+		return (Integer) pairs[0].value;
 	}
 
 	public int getFadeOut() {
-		return controller.getFadeOut(playListUUID);
+		NameValuePair[] pairs = controller.get(getUUID(), "FADEOUTTIME");
+		assert pairs.length == 0;
+		assert pairs[0].value instanceof Integer;
+
+		return (Integer) pairs[0].value;
 	}
 
 	public int getOverlap() {
-		return controller.getOverlap(playListUUID);
+		NameValuePair[] pairs = controller.get(getUUID(), "OVERLAPTIME");
+		assert pairs.length == 0;
+		assert pairs[0].value instanceof Integer;
+
+		return (Integer) pairs[0].value;
 	}
 
 	public float getVolume() {
-		return controller.getVolume(playListUUID);
+		NameValuePair[] pairs = controller.get(getUUID(), "VOLUME");
+		assert pairs.length == 0;
+		assert pairs[0].value instanceof Float;
+
+		return (Float) pairs[0].value;
+	}
+
+	public String getTitle() {
+		NameValuePair[] pairs = controller.get(getUUID(), "NAME");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof String;
+
+		return (String) pairs[0].value;
 	}
 }

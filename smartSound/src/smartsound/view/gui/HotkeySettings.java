@@ -26,6 +26,7 @@ import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,12 +40,14 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
 
 import smartsound.common.Tuple;
@@ -98,18 +101,27 @@ public class HotkeySettings extends JDialog implements ItemListener {
 				Action action;
 				if (table.getSelectedRow() > -1) {
 					action = tableModel.getActionAtRow(table.getSelectedRow());
-					getGUIController().removeHotkey(action);
+					UUID currentScene = tableModel.getCurrentScene();
+					getGUIController().removeHotkey(
+							currentScene,
+							tableModel.getHotkeyStringAtRow(table
+									.getSelectedRow()), action);
 					tableModel.update();
 					repaint();
 				}
 			}
 		});
 		borderPanel.add(removeButton, gbc);
-		
-		JButton exportButton = new JButton("Export as PDF");
-		exportButton.setEnabled(false);
+
+		JButton exportButton = new JButton(new AbstractAction("Export as PDF") {
+			@Override
+			public void actionPerformed(final ActionEvent arg0) {
+				pdfExport();
+			}
+		});
+		//exportButton.setEnabled(false);
 		borderPanel.add(exportButton, gbc);
-		
+
 		JButton printButton = new JButton("Print");
 		printButton.setEnabled(false);
 		borderPanel.add(printButton, gbc);
@@ -155,7 +167,7 @@ public class HotkeySettings extends JDialog implements ItemListener {
 		return parent.getGUIController();
 	}
 
-	private KeyStroke getKeyStroke(final String hotkeyString) {
+	private static KeyStroke getKeyStroke(final String hotkeyString) {
 		String[] split = hotkeyString.split("\\|");
 		return KeyStroke.getKeyStroke(Integer.parseInt(split[1]),Integer.parseInt(split[0]));
 	}
@@ -168,11 +180,13 @@ public class HotkeySettings extends JDialog implements ItemListener {
 
 		public SceneComboBoxModel() {
 			sceneList.add(null);
-			sceneList.addAll(getGUIController().getPlayListSetUUIDs(null));
+			sceneList.addAll((List<UUID>) getGUIController().get(null, "PLAYLISTSETS")[0].value);
 
+			String title;
 			for (UUID uuid : sceneList) {
-				titleMap.put(uuid, uuid == null ? "GLOBAL" : getGUIController().getTitle(uuid));
-				invertedTitleMap.put(uuid == null ? "GLOBAL" : getGUIController().getTitle(uuid), uuid);
+				title = (String) getGUIController().get(uuid, "NAME")[0].value;
+				titleMap.put(uuid, uuid == null ? "GLOBAL" : title);
+				invertedTitleMap.put(uuid == null ? "GLOBAL" : title, uuid);
 			}
 		}
 
@@ -207,7 +221,7 @@ public class HotkeySettings extends JDialog implements ItemListener {
 		public void update() {
 			GUIController c = parent.getGUIController();
 
-			List<UUID> sceneList = c.getPlayListSetUUIDs(null);
+			List<UUID> sceneList = (List<UUID>) c.get(null, "PLAYLISTSETS")[0].value;
 			sceneMap.clear();
 			sceneMap.put(null, c.getHotkeys((UUID) null));
 			for (UUID uuid : sceneList) {
@@ -239,6 +253,10 @@ public class HotkeySettings extends JDialog implements ItemListener {
 			return null;
 		}
 
+		public UUID getCurrentScene() {
+			return currentScene;
+		}
+
 		@Override
 		public int getRowCount() {
 			return sceneMap.get(currentScene).size();
@@ -259,9 +277,12 @@ public class HotkeySettings extends JDialog implements ItemListener {
 			return "";
 		}
 
+		public String getHotkeyStringAtRow(final int rowIndex) {
+			return sceneMap.get(currentScene).get(rowIndex).first;
+		}
+
 		@Override
 		public void setValueAt(final Object obj, final int rowIndex, final int columnIndex) {
-			System.out.println("Value set");
 			if (columnIndex != 2)
 				return;
 
@@ -286,8 +307,83 @@ public class HotkeySettings extends JDialog implements ItemListener {
 
 	}
 
+	protected class StringTuple extends Tuple<UUID, String> {
+		protected StringTuple(final UUID uuid, final String string) {
+			super(uuid, string);
+		}
+
+		@Override
+		public String toString() {
+			return second;
+		}
+	}
+
+	private void pdfExport() {
+		JFileChooser chooser = new JFileChooser();
+		chooser.setFileFilter(new FileFilter() {
+
+			@Override
+			public boolean accept(final File arg0) {
+				if (arg0.getAbsolutePath().toLowerCase().endsWith(".pdf") || arg0.isDirectory()) {
+					return true;
+				}
+				return false;
+			}
+
+			@Override
+			public String getDescription() {
+				return "PDF files (*.pdf)";
+			}
+
+		});
+		chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+
+		List<UUID> sceneList = new LinkedList<UUID>();
+		sceneList.add(null);
+		sceneList.addAll((List<UUID>) getGUIController().get(null, "PLAYLISTSETS")[0].value);
+
+		List<Tuple<UUID, String>> sceneNames = new LinkedList<Tuple<UUID,String>>();
+		String name;
+
+		for (UUID uuid : sceneList) {
+			name = uuid == null ? "GLOBAL" : (String) getGUIController().get(uuid, "NAME")[0].value;
+
+			sceneNames.add(new StringTuple(uuid, name));
+		}
+
+		List<StringTuple> input = (List<StringTuple>) UserInput.getInput(this, true, sceneNames.toArray());
+		int result = chooser.showSaveDialog(this);
+		if (result != JFileChooser.APPROVE_OPTION)
+			return;
+
+
+		Map<UUID, String> nameMap = new HashMap<UUID, String>();
+		Map<UUID, List<Tuple<String, Action>>> actionMap
+		= new HashMap<UUID, List<Tuple<String, Action>>>();
+		Map<Action, String> commentMap = new HashMap<Action, String>();
+
+		List<Tuple<String, List<Tuple<String,Action>>>> exportList
+		= new LinkedList<Tuple<String, List<Tuple<String,Action>>>>();
+		for (Tuple<UUID, String> tuple : input) {
+			nameMap.put(tuple.first, tuple.second);
+			actionMap.put(tuple.first, getGUIController().getHotkeys(tuple.first));
+		}
+
+		for (Tuple<Action,String> tuple : getGUIController().getHotkeyComments()) {
+			commentMap.put(tuple.first, tuple.second);
+		}
+
+		String filePath = chooser.getSelectedFile().getAbsolutePath();
+
+		PDFExporter.exportHotkeys(nameMap, actionMap, commentMap, filePath);
+	}
+
 	@Override
 	public void itemStateChanged(final ItemEvent event) {
 		tableModel.setCurrentScene(comboBoxModel.getCurrentUUID());
+	}
+
+	public static void main(final String[] args) {
+		System.out.println(getKeyStroke("0|68"));
 	}
 }

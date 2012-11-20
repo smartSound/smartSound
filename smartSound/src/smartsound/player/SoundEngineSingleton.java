@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -28,11 +28,11 @@ import smartsound.plugins.player.SoundEngine;
  *
  */
 public class SoundEngineSingleton {
-	
+
 	private static Class<? extends SoundEngine> SoundEngineClass;
-	
+
 	private static SoundEngine instance;
-	
+
 	public static SoundEngine getInstance() {
 		if (instance == null) {
 			try {
@@ -60,8 +60,8 @@ public class SoundEngineSingleton {
 		}
 		return instance;
 	}
-	
-	public static void setSoundEngineClass(Class<? extends SoundEngine> SoundEngineClass) {
+
+	public static void setSoundEngineClass(final Class<? extends SoundEngine> SoundEngineClass) {
 		SoundEngineSingleton.SoundEngineClass = SoundEngineClass;
 	}
 }

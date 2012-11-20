@@ -67,7 +67,6 @@ public class Launcher {
 		UIManager.put("nimbusBlueGrey", new Color(113, 98, 70));
 		UIManager.put("background", new Color(113, 98, 70));
 		UIManager.put("List.background", new Color(113, 98, 70));
-		//UIManager.put("MenuItem.contentMargins", new Insets(0,2,0,5));
 		try {
 			UIManager.setLookAndFeel(NimbusLookAndFeel.class.getCanonicalName());
 			UIManager.getLookAndFeelDefaults().put("PopupMenu[Enabled].backgroundPainter",
@@ -133,13 +132,6 @@ public class Launcher {
 		if (operatingSystem.contains("Linux")) {
 		} else if (operatingSystem.contains("Windows")){
 		} else if (operatingSystem.contains("Mac OS")) {
-			JOptionPane.showMessageDialog(null,
-					"Sadly, this version of smartSound does not work on Mac OS, \n" +
-							"because Java 7 is not supported yet. If Java 7 \n" +
-							"is available for Mac OS and you still get this message, check \n" +
-							"for a new version of smartSound or feel free to kick our \n" +
-					"asses to provide a working one. Thanks.");
-			System.exit(0);
 		}
 
 		String environmentVariableContent;
@@ -205,7 +197,7 @@ public class Launcher {
 
 	private static void restart(final List<Tuple<String, String>> neededEnvironment, final String pluginName) {
 		try {
-			ProcessBuilder pb = new ProcessBuilder(getJrePath(), "-d32", "-jar", getMainDir() + "/smartSound.jar", pluginName);
+			ProcessBuilder pb = new ProcessBuilder(getJrePath(), "-jar", getMainDir() + "/smartSound.jar", pluginName);
 
 			Map<String, String> env = pb.environment();
 
@@ -260,7 +252,7 @@ public class Launcher {
 					} catch (IOException e1) {
 						e1.printStackTrace();
 					}
-					
+
 					try {
 						while ((errLine = bufferedReader.readLine()) != null) {
 							System.err.println(errLine);

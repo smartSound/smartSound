@@ -28,6 +28,7 @@ import smartsound.plugins.player.ISound;
 public class SoundEngine extends smartsound.plugins.player.SoundEngine {
 
 	public SoundEngine() {
+		System.setProperty("java.library.path", PluginLoader.getLibraryDirectory());
 		BassInit.loadLibraries();
 		BASS_Init(-1, 44100, 0, null, null);
 	}
@@ -61,6 +62,11 @@ public class SoundEngine extends smartsound.plugins.player.SoundEngine {
 	@Override
 	public void stopAllPlayers() {
 		Bass.BASS_Stop();
+	}
+
+	@Override
+	public String getName() {
+		return "NativeBass";
 	}
 
 }

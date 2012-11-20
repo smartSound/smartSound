@@ -34,8 +34,10 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.swing.AbstractAction;
@@ -50,13 +52,10 @@ import javax.swing.UIManager;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
-import smartsound.common.Tuple;
-import smartsound.player.ItemData;
-import smartsound.view.Action;
 import smartsound.view.gui.IconManager.IconType;
 
-public class PlayList extends JList<ItemData> implements ListDataListener,
-IGUILadder {
+public class PlayList extends JList<ItemData> implements ListDataListener, IGUILadder {
+
 	class ChainWithTuple implements Comparable<ChainWithTuple> {
 
 		public int getStartIndex() {
@@ -89,24 +88,15 @@ IGUILadder {
 	private int dropAction;
 	private int dropSourceIndex;
 	private PlayListPanel panel;
+	private UUID layoutUUID;
 	protected Point lastMouseClickPosition;
-	private Action playIndexAction;
-	private Action playUUIDAction;
-	private Action setRepeatItemAction;
-	private Action setChainWithAction;
 	protected IGUILadder parent;
 
-	public PlayList(final IGUILadder parent, final PlayListDataModel model) {
-		super(model);
+	public PlayList(final IGUILadder parent, final UUID layoutUUID) {
+		super(new PlayListDataModel(parent.getGUIController(), layoutUUID));
+
+		final PlayListDataModel model = getModel();
 		this.parent = parent;
-		playIndexAction = parent.getGUIController().getPlayIndexAction(
-				model.getUUID(), "Play an index");
-		playUUIDAction = parent.getGUIController().getPlayItemAction(
-				model.getUUID(), "Play an UUID");
-		setRepeatItemAction = parent.getGUIController().getSetRepeatItemAction(
-				model.getUUID(), "Repeat Item by UUID");
-		setChainWithAction = parent.getGUIController()
-				.getSetItemChainWithAction(model.getUUID(), "Chain with item");
 		setBackground(UIManager.getColor("List.background"));
 
 		lastMouseClickPosition = null;
@@ -133,8 +123,7 @@ IGUILadder {
 					playList.play(index);
 				else if (playList.insideRepeatRectOf(e.getPoint()) == index) {
 					ItemData data = model.getElementAt(index);
-					setRepeatItemAction.execute(data.getUUID(),
-							!data.isRepeating());
+					getGUIController().set(data.getUUID(), "REPEAT", !data.isRepeating());
 				}
 			}
 		});
@@ -166,7 +155,7 @@ IGUILadder {
 					showMenu(e);
 				lastMouseClickPosition = null;
 			}
-			
+
 			private void showMenu(final MouseEvent e) {
 				JPopupMenu menu = new JPopupMenu();
 				JMenu hotkeyMenu = new JMenu("Hotkeys");
@@ -188,10 +177,7 @@ IGUILadder {
 							KeyEvent event = dialog.getEvent();
 							if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
 								return;
-							PlayList.this.parent.getGUIController().setHotkey(
-									getUUID(),
-									event,
-									playUUIDAction.specialize("Play '" + item.toString() + "'", item.getUUID()));
+							PlayList.this.parent.getGUIController().addActHotkey(event, item.getUUID(), "PLAY");
 							wnd.toFront();
 						}
 
@@ -208,13 +194,9 @@ IGUILadder {
 								return;
 							String result = (String) UserInput.getInput(panel,
 									"Turn on", "Turn off");
-							PlayList.this.parent.getGUIController().setHotkey(
-									getUUID(),
-									event,
-									setRepeatItemAction.specialize(
-											"Set 'repeat' for '" + item.toString() + "'",
-											item.getUUID(),
-											result.equals("Turn on")));
+							Map<String, Object> values = new HashMap<String, Object>();
+							values.put("REPEAT", result.equals("Turn on"));
+							PlayList.this.parent.getGUIController().addSetHotkey(event, item.getUUID(), values);
 							wnd.toFront();
 						}
 					}));
@@ -240,15 +222,11 @@ IGUILadder {
 							}
 							Object result = UserInput.getInput(panel,
 									possibilities);
-							PlayList.this.parent.getGUIController().setHotkey(
-									getUUID(),
-									event,
-									setChainWithAction.specialize(
-											"Set 'repeat' for '" + item.toString() + "'",
-											item.getUUID(),
-											result.equals("None") ? null
-													: ((ItemData) result)
-													.getUUID()));
+							Map<String, Object> values = new HashMap<String, Object>();
+							values.put("CHAINEDWITH",
+									result.equals("None") ? null
+											: ((ItemData) result).getUUID());
+							PlayList.this.parent.getGUIController().addSetHotkey(event, item.getUUID(), values);
 							wnd.toFront();
 						}
 					}));
@@ -260,53 +238,36 @@ IGUILadder {
 				}
 
 				String itemTitle;
-				UUID itemUUID;
 				List<JMenuItem> itemList = new LinkedList<JMenuItem>();
 
+				/*
 				List<Tuple<String, Action>> hotkeyList = PlayList.this.parent
 						.getGUIController().getHotkeys(playUUIDAction);
 				for (Tuple<String, Action> tuple : hotkeyList) {
-					itemTitle = "Play '";
-					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second
-							.getNoOfDefaultParams() - 1);
-					itemTitle += getElement(itemUUID).toString();
-					itemTitle += "'";
+					itemTitle = tuple.second.getDescription();
 
 					itemList.add(new RemoveHotkeyMenuItem(tuple.second,
-							itemTitle, getGUIController()));
+							itemTitle, tuple.first, model.getUUID(), getGUIController()));
 				}
 
 				hotkeyList = PlayList.this.parent.getGUIController()
 						.getHotkeys(setRepeatItemAction);
 				for (Tuple<String, Action> tuple : hotkeyList) {
-					itemTitle = (boolean) tuple.second.getLastParam() ? "Turn on"
-							: "Turn off";
-					itemTitle += " 'repeat' of '";
-					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second
-							.getNoOfDefaultParams() - 2);
-					itemTitle += getElement(itemUUID).toString();
-					itemTitle += "'";
+					itemTitle = tuple.second.getDescription();
 
 					itemList.add(new RemoveHotkeyMenuItem(tuple.second,
-							itemTitle, getGUIController()));
+							itemTitle, tuple.first, model.getUUID(), getGUIController()));
 				}
 
 				hotkeyList = PlayList.this.parent.getGUIController()
 						.getHotkeys(setChainWithAction);
 				for (Tuple<String, Action> tuple : hotkeyList) {
-					itemTitle = "Set chaining of '";
-					itemUUID = (UUID) tuple.second.getDefaultParam(tuple.second
-							.getNoOfDefaultParams() - 2);
-					itemTitle += itemUUID == null ? "None" : getElement(
-							itemUUID).toString();
-					itemTitle += "' to '";
-					itemUUID = (UUID) tuple.second.getLastParam();
-					itemTitle += getElement(itemUUID).toString();
-					itemTitle += "'";
+					itemTitle = tuple.second.getDescription();
 
 					itemList.add(new RemoveHotkeyMenuItem(tuple.second,
-							itemTitle, getGUIController()));
+							itemTitle, tuple.first, model.getUUID(), getGUIController()));
 				}
+				 */
 
 				if (!itemList.isEmpty()) {
 					hotkeyMenu.add(new TitledSeparator("Remove hotkeys", true));
@@ -359,7 +320,8 @@ IGUILadder {
 	}
 
 	protected void play(final int index) {
-		playIndexAction.execute(index);
+		ItemData data = getModel().getElementAt(index);
+		getGUIController().act(data.getUUID(), "PLAY");
 	}
 
 	public void setDropLocation(final javax.swing.JList.DropLocation loc) {
@@ -447,12 +409,12 @@ IGUILadder {
 		int index;
 		for (int i = 0; i < model.getSize(); i++) {
 			entry = model.getElementAt(i);
-			if (entry.getChainWith() != null) {
-				index = model.getIndexFromUuid(entry.getChainWith());
+			if (entry.getChainedWith() != null) {
+				index = model.getIndexFromUuid(entry.getChainedWith());
 				if (index < 0)
 					continue;
 				tuple = new ChainWithTuple(i, model.getIndexFromUuid(entry
-						.getChainWith()));
+						.getChainedWith()));
 				tuples.add(tuple);
 			}
 		}

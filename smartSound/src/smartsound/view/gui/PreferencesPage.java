@@ -21,6 +21,7 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
@@ -28,13 +29,17 @@ import java.io.IOException;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
+import smartsound.player.SoundEngineSingleton;
 import smartsound.settings.Global;
 
 public class PreferencesPage extends JDialog {
@@ -53,9 +58,10 @@ public class PreferencesPage extends JDialog {
 		c.weighty = 0.5f;
 		c.fill = GridBagConstraints.BOTH;
 
-		JPanel resetPluginPanel = new JPanel(new BorderLayout());
-		resetPluginPanel.setBorder(BorderFactory.createTitledBorder("Sound plugin"));
-		resetPluginPanel.add(new JButton(new AbstractAction("Reset plugin") {
+		JPanel pluginPanel = new JPanel(new GridLayout(2,1));
+
+		pluginPanel.setBorder(BorderFactory.createTitledBorder("Sound plugin"));
+		pluginPanel.add(new JButton(new AbstractAction("Reset Plugin") {
 			@Override
 			public void actionPerformed(final ActionEvent arg0) {
 				try {
@@ -67,7 +73,17 @@ public class PreferencesPage extends JDialog {
 				}
 			}
 		}));
-		panel.add(resetPluginPanel, c);
+		pluginPanel.add(new JButton(new AbstractAction("Configure Plugin") {
+			@Override
+			public void actionPerformed(final ActionEvent arg0) {
+				try {
+					SoundEngineSingleton.getInstance().configure();
+				} catch (UnsupportedOperationException e) {
+					JOptionPane.showMessageDialog(PreferencesPage.this, "Plugin '" + SoundEngineSingleton.getInstance().getName() + "' does not support configuration.");
+				}
+			}
+		}));
+		panel.add(pluginPanel, c);
 
 		JPanel languagePanel = new JPanel(new BorderLayout());
 		languagePanel.setBorder(BorderFactory.createTitledBorder("Languages"));
@@ -78,6 +94,32 @@ public class PreferencesPage extends JDialog {
 		c.gridy++;
 
 		panel.add(languagePanel, c);
+
+		JPanel miscPanel = new JPanel(new BorderLayout());
+		miscPanel.setBorder(BorderFactory.createTitledBorder("Miscellaneous"));
+		final JCheckBox resizeAutomatically = new JCheckBox("Resize automatically");
+		boolean resize;
+		try {
+			resize = Global.getInstance().getProperty("resize_automatically").toLowerCase().equals("true");
+		} catch (IOException e) {
+			resize = true;
+		}
+		resizeAutomatically.setSelected(resize);
+		resizeAutomatically.addChangeListener(new ChangeListener() {
+
+			@Override
+			public void stateChanged(final ChangeEvent arg0) {
+				try {
+					Global.getInstance().setProperty("resize_automatically", String.valueOf(resizeAutomatically.isSelected()));
+				} catch (IOException e) {
+					JOptionPane.showMessageDialog(null, "Sorry, there was an error saving your changes. Please report this bug.");
+				}
+			}
+		});
+		miscPanel.add(resizeAutomatically);
+		c.gridy++;
+
+		panel.add(miscPanel, c);
 
 		pack();
 		setResizable(false);

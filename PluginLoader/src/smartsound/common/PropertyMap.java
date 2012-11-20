@@ -17,6 +17,7 @@
 
 package smartsound.common;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -144,6 +145,9 @@ public class PropertyMap {
 	 * @param savePath The file path to the INI file.
 	 */
 	public void saveToIni(final String savePath) {
+		File file = new File(savePath);
+		if (file.exists())
+			file.delete();
 		INIFile ini = new INIFile(savePath);
 		saveToIni(ini);
 		ini.setStringProperty("GLOBALS", "ROOT", mapUUID.toString(), "");

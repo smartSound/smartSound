@@ -24,14 +24,18 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
+import java.util.Map;
+import java.util.UUID;
 
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
-import javax.swing.border.Border;
+
+import smartsound.common.IChangeObserver;
+import smartsound.view.LayoutManager;
 
 
-public class PlayListPanel extends JPanel implements IGUILadder
+public class PlayListPanel extends JPanel implements IGUILadder, IChangeObserver
 {
 
 	protected PlayList playList;
@@ -41,23 +45,30 @@ public class PlayListPanel extends JPanel implements IGUILadder
 	protected boolean movedClockwise;
 	protected boolean draggingSpeaker;
 	private IGUILadder parent;
+	private final int x = -1;
+	private final int y = -1;
+	private final UUID layoutUUID;
 
-	public PlayListPanel(final IGUILadder parent, final Border border, final PlayListDataModel playListDataModel)
+
+	public PlayListPanel(final IGUILadder parent, final UUID layoutUUID)
 	{
-		setBorder(border);
 		this.parent = parent;
 		movedClockwise = false;
 		draggingSpeaker = false;
-		playList = new PlayList(this, playListDataModel);
+		playList = new PlayList(this, layoutUUID);
 		playList.setPanel(this);
+		PlayListDataModel model = playList.getModel();
 		CardLayout layout = new CardLayout();
 		setLayout(layout);
 
 		add(new JScrollPane(playList), PLAYLISTCARD);
-		JPanel settingsPanel = new SettingsPanel(this, playListDataModel);
+		JPanel settingsPanel = new SettingsPanel(this, model);
 		add(settingsPanel, SETTINGSCARD);
 		setOpaque(false);
 		this.parent = parent;
+		this.layoutUUID = layoutUUID;
+
+		LayoutManager.add(layoutUUID, "CHANGEOBSERVER", this);
 	}
 
 	protected int posToAngle(final Point point)
@@ -105,6 +116,28 @@ public class PlayListPanel extends JPanel implements IGUILadder
 	public void updateMinimumSize() {
 		setMinimumSize(new Dimension(295,330));
 		parent.updateMinimumSize();
+	}
+
+	@Override
+	public void elementChanged(final UUID elementUUID, final Map<String, Object> changed) {
+		assert elementUUID.equals(this.layoutUUID);
+
+		int x = this.x;
+		int y = this.y;
+		if (changed.containsKey("X")) {
+			x = (Integer) changed.get("X");
+		}
+		if (changed.containsKey("Y")) {
+			y = (Integer) changed.get("Y");
+		}
+
+		if (x != this.x || y != this.y) {
+			((PlayListPanelBorder) parent).movedTo(this, x, y);
+		}
+	}
+
+	public PlayListDataModel getModel() {
+		return playList.getModel();
 	}
 
 }

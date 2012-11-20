@@ -25,8 +25,10 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.swing.AbstractAction;
@@ -38,8 +40,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 
-import smartsound.common.Tuple;
-import smartsound.view.Action;
+import smartsound.common.IElement.NameValuePair;
 import smartsound.view.gui.IconManager.IconType;
 
 public class PlayListSetToolBar extends JToolBar implements IGUILadder{
@@ -56,7 +57,7 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 
 			@Override
 			public void mouseClicked(final MouseEvent e) {
-				getGUIController().getPlayPlayListAction(playListSetUUID, "Play").execute();
+				getGUIController().act(playListSetUUID, "PLAY");
 			}
 
 			@Override
@@ -87,33 +88,41 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 				hotkeyMenu.add(new TitledSeparator("Add Hotkeys", false));
 				menu.add(hotkeyMenu);
 
+				NameValuePair[] pairs = getGUIController().get(playListSetUUID, "NAME");
+				assert pairs.length == 1;
+				assert pairs[0].value instanceof String;
 
-				hotkeyMenu.add(new AddMenuItem(new AbstractAction("Play '" + getGUIController().getTitle(playListSetUUID) + "'") {
+				hotkeyMenu.add(new AddMenuItem(new AbstractAction("Play '" + (String) pairs[0].value + "'") {
 					@Override
 					public void actionPerformed(final ActionEvent e) {
+						NameValuePair[] pairs = getGUIController().get(playListSetUUID, "NAME");
+						assert pairs.length == 1;
+						assert pairs[0].value instanceof String;
+
 						Window wnd = SwingUtilities.getWindowAncestor(PlayListSetToolBar.this);
 						HotkeyDialog dialog = new HotkeyDialog(wnd);
 						KeyEvent event = dialog.getEvent();
 						if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
 							return;
-						parent.getGUIController().setHotkey(null, event,
-								getGUIController().getPlayPlayListAction(playListSetUUID, "Play '" + getGUIController().getTitle(playListSetUUID) + "'"));
+						parent.getGUIController().addActHotkey(event, playListSetUUID, "PLAY");
 						wnd.toFront();
 					}
 				}));
 
 				List<RemoveHotkeyMenuItem> removeList = new LinkedList<RemoveHotkeyMenuItem>();
+				/*
 				Action action = getGUIController().getPlayPlayListAction(playListSetUUID, "Play");
 				for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, playListSetUUID, getGUIController()));
 
 				action = getGUIController().getStopAction(playListSetUUID, "Stop");
 				for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, playListSetUUID, getGUIController()));
 
 				action = getGUIController().getGUIController().getVolumeAction(playListSetUUID, "Set Volume");
 				for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, playListSetUUID, getGUIController()));
+				 */
 
 				if (!removeList.isEmpty()) {
 					hotkeyMenu.add(new TitledSeparator("Remove hotkeys", false));
@@ -134,7 +143,7 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 
 			@Override
 			public void mouseClicked(final MouseEvent arg0) {
-				getGUIController().getStopAction(playListSetUUID, "Stop").execute();
+				getGUIController().act(playListSetUUID, "STOP");
 			}
 
 			@Override
@@ -164,32 +173,41 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 				hotkeyMenu.add(new TitledSeparator("Add Hotkeys", false));
 				menu.add(hotkeyMenu);
 
-				hotkeyMenu.add(new AddMenuItem(new AbstractAction("Stop '" + getGUIController().getTitle(playListSetUUID) + "'") {
+				NameValuePair[] pairs = getGUIController().get(playListSetUUID, "NAME");
+				assert pairs.length == 1;
+				assert pairs[0].value instanceof String;
+
+				hotkeyMenu.add(new AddMenuItem(new AbstractAction("Stop '" + (String) pairs[0].value + "'") {
 					@Override
 					public void actionPerformed(final ActionEvent e) {
+						NameValuePair[] pairs = getGUIController().get(playListSetUUID, "NAME");
+						assert pairs.length == 1;
+						assert pairs[0].value instanceof String;
+
 						Window wnd = SwingUtilities.getWindowAncestor(PlayListSetToolBar.this);
 						HotkeyDialog dialog = new HotkeyDialog(wnd);
 						KeyEvent event = dialog.getEvent();
 						if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
 							return;
-						parent.getGUIController().setHotkey(null, event,
-								getGUIController().getStopAction(playListSetUUID, "Stop '" + getGUIController().getTitle(playListSetUUID) + "'"));
+						parent.getGUIController().addActHotkey(event, playListSetUUID, "STOP");
 						wnd.toFront();
 					}
 				}));
 
 				List<RemoveHotkeyMenuItem> removeList = new LinkedList<RemoveHotkeyMenuItem>();
+				/*
 				Action action = getGUIController().getPlayPlayListAction(playListSetUUID, "Play");
 				for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, playListSetUUID, getGUIController()));
 
 				action = getGUIController().getStopAction(playListSetUUID, "Stop");
 				for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, playListSetUUID, getGUIController()));
 
 				action = getGUIController().getGUIController().getVolumeAction(playListSetUUID, "Set Volume");
 				for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, playListSetUUID, getGUIController()));
+				 */
 
 				if (!removeList.isEmpty()) {
 					hotkeyMenu.add(new TitledSeparator("Remove hotkeys", false));
@@ -207,11 +225,15 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 		volumeLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
 		volumeLabel.setToolTipText("Set volume");
 
+		final NameValuePair[] pairs = getGUIController().get(playListSetUUID, "VOLUME");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof Float;
+
 		MouseAdapter mouseAdapter = new MouseAdapter() {
 
 			private boolean draggingSpeaker = false;
 			private boolean dragged = false;
-			private boolean movedClockwise = getGUIController().getVolume(playListSetUUID) > 0.5f;
+			private boolean movedClockwise = (Float) pairs[0].value > 0.5f;
 
 			@Override
 			public void mouseClicked(final MouseEvent arg0) {
@@ -261,7 +283,7 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 					movedClockwise = percentage > 0.5F;
 
 					volumeLabel.setVolume(percentage);
-					getGUIController().getVolumeAction(playListSetUUID, "Set Volume").execute(percentage);
+					getGUIController().set(playListSetUUID, "VOLUME", percentage);
 			}
 
 			private void showPopup(final MouseEvent e) {
@@ -271,7 +293,11 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 				hotkeyMenu.add(new TitledSeparator("Add Hotkeys", false));
 				menu.add(hotkeyMenu);
 
-				hotkeyMenu.add(new AddMenuItem(new AbstractAction("Set volume for '" + getGUIController().getTitle(playListSetUUID) + "'") {
+				NameValuePair[] pairs = getGUIController().get(playListSetUUID, "NAME");
+				assert pairs.length == 1;
+				assert pairs[0].value instanceof String;
+
+				hotkeyMenu.add(new AddMenuItem(new AbstractAction("Set volume for '" + (String) pairs[0].value + "'") {
 					@Override
 					public void actionPerformed(final ActionEvent arg0) {
 						Window wnd = SwingUtilities.getWindowAncestor(PlayListSetToolBar.this);
@@ -279,9 +305,13 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 						KeyEvent event = dialog.getEvent();
 						if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
 							return;
+						NameValuePair[] pairs = getGUIController().get(playListSetUUID, "VOLUME", "NAME");
+						assert pairs.length == 2;
+						assert pairs[0].value instanceof Float;
+						assert pairs[1].value instanceof String;
+
 						Double result = UserInput
-								.getInput(PlayListSetToolBar.this, 0, 100, 1, getGUIController()
-										.getVolume(playListSetUUID) * 100);
+								.getInput(PlayListSetToolBar.this, 0, 100, 1, (Float) pairs[0].value * 100);
 						float volume;
 						try {
 							volume = result.floatValue() / 100.0f;
@@ -290,25 +320,27 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 						} catch (NumberFormatException e) {
 							return;
 						}
-						parent.getGUIController().setHotkey(null,
-								event,
-								getGUIController().getVolumeAction(playListSetUUID, "Set volume").specialize("Set volume of '" + getGUIController().getTitle(playListSetUUID) + "' to " + (100*volume) + "%" ,volume));
+						Map<String, Object> values = new HashMap<String, Object>();
+						values.put("VOLUME", volume);
+						parent.getGUIController().addSetHotkey(event, playListSetUUID, values);
 						wnd.toFront();
 					}
 				}));
 
 				List<RemoveHotkeyMenuItem> removeList = new LinkedList<RemoveHotkeyMenuItem>();
+				/*
 				Action action = getGUIController().getPlayPlayListAction(playListSetUUID, "Play");
 				for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, playListSetUUID, getGUIController()));
 
 				action = getGUIController().getStopAction(playListSetUUID, "Stop");
 				for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, playListSetUUID, getGUIController()));
 
 				action = getGUIController().getGUIController().getVolumeAction(playListSetUUID, "Set Volume");
 				for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+					removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, playListSetUUID, getGUIController()));
+				 */
 
 				if (!removeList.isEmpty()) {
 					hotkeyMenu.add(new TitledSeparator("Remove hotkeys", false));
@@ -335,8 +367,10 @@ public class PlayListSetToolBar extends JToolBar implements IGUILadder{
 				StringInputDialog dlg = new StringInputDialog(SwingUtilities.getWindowAncestor(PlayListSetToolBar.this), "Please enter a name for the new playlist and press Enter.", "New Playlist " + sceneCounter++);
 				dlg.setVisible(true);
 
-				UUID uuid = getGUIController().addPlayList(playListSetUUID);
-				getGUIController().setTitle(uuid, dlg.getTextInput());
+				UUID uuid = getGUIController().add(playListSetUUID, "PLAYLIST");
+				NameValuePair[] setPair = new NameValuePair[1];
+				setPair[0] = NameValuePair.create("NAME", dlg.getTextInput());
+				getGUIController().set(uuid, setPair);
 			}
 
 			@Override

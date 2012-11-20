@@ -30,7 +30,6 @@ import javax.swing.JComponent;
 import javax.swing.JList;
 import javax.swing.TransferHandler;
 
-import smartsound.player.ItemData;
 import smartsound.player.events.ITimeEventListener;
 import smartsound.player.events.TimeEventHandler;
 
@@ -43,7 +42,7 @@ public class PlayListTransferHandler extends TransferHandler implements ITimeEve
 
 	private PlayList lastPlayList = null;
 	private long currentTime = -1;
-	
+
 	@Override
 	public int getSourceActions(final JComponent comp) {
 		assert comp instanceof PlayList;
@@ -51,7 +50,7 @@ public class PlayListTransferHandler extends TransferHandler implements ITimeEve
 		if (list.getMousePosition() == null) {
 			return TransferHandler.NONE;
 		}
-		
+
 		if (list.insideChainRectOf(list.getMousePosition()) != -1) {
 			return TransferHandler.LINK;
 		} else {
@@ -104,7 +103,7 @@ public class PlayListTransferHandler extends TransferHandler implements ITimeEve
 					lastPlayList = list;
 					TimeEventHandler.add(this, null);
 				}
-				currentTime = System.currentTimeMillis(); 
+				currentTime = System.currentTimeMillis();
 				list.setDropLocation((JList.DropLocation) t.getDropLocation());
 				list.setDropAction(t.getDropAction());
 				list.repaint(20);
@@ -197,13 +196,13 @@ public class PlayListTransferHandler extends TransferHandler implements ITimeEve
 			}
 			return false;
 		}
-		
+
 		if (currentTime - this.currentTime > 1000) {
 			lastPlayList.setDropLocation(null);
 			lastPlayList.repaint(250);
 		}
-		
+
 		return true;
-			
+
 	}
 }

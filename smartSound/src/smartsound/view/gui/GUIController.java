@@ -42,15 +42,12 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 
+import smartsound.common.IElement.NameValuePair;
 import smartsound.common.IObserver;
 import smartsound.common.Tuple;
-import smartsound.player.ItemData;
 import smartsound.settings.Global;
 import smartsound.view.AbstractViewController;
-import smartsound.view.AbstractViewController.PositionType;
 import smartsound.view.Action;
-import smartsound.view.ILayoutObserver;
-import smartsound.view.Layout;
 
 public class GUIController implements IGUILadder {
 
@@ -93,15 +90,44 @@ public class GUIController implements IGUILadder {
 		fileChooser = new JFileChooser();
 		fileChooser.setMultiSelectionEnabled(true);
 
-		resetTabs();
+		tabs = new TabbedPane(frame);
+
+		c = new GridBagConstraints();
+		c.gridx = 0;
+		c.gridy = 2;
+
+		c.fill = GridBagConstraints.BOTH;
+		c.weightx = 0.5;
+		c.weighty = 0.5;
+
+		mainPanel.add(tabs, c);
+
+		mainPanel.revalidate();
 	}
 
-	public void addLayoutObserver(final ILayoutObserver observer, final UUID observableUUID) {
-		viewController.addLayoutObserver(observer, observableUUID);
+	public void act(final UUID element, final String... actionTypes) {
+		viewController.act(element, actionTypes);
 	}
 
-	public void removeLayoutObserver(final ILayoutObserver observer, final UUID observableUUID) {
-		viewController.removeLayoutObserver(observer, observableUUID);
+	public UUID add(final UUID parent, final String elementType, final Object... params) {
+		return viewController.add(parent, elementType, params);
+	}
+
+	public void remove(final UUID uuid) {
+		viewController.remove(uuid);
+	}
+
+	public NameValuePair[] get(final UUID uuid, final String... propertyNames) {
+		return viewController.get(uuid, propertyNames);
+	}
+
+	public void set(final UUID uuid, final String name, final Object value) {
+		NameValuePair[] pair = {NameValuePair.create(name, value)};
+		set(uuid, pair);
+	}
+
+	public void set(final UUID uuid, final NameValuePair... params) {
+		viewController.set(uuid, params);
 	}
 
 	private void resetTabs() {
@@ -119,126 +145,11 @@ public class GUIController implements IGUILadder {
 
 		mainPanel.add(tabs, c);
 
-		tabs.update((UUID) null);
 		mainPanel.revalidate();
 	}
 
 	public void addObserver(final IObserver observer, final UUID observableUUID) {
 		viewController.addObserver(observer, observableUUID);
-	}
-
-	public ItemData getItemData(final UUID playListUUID, final int index) {
-		return viewController.getItemData(playListUUID, index);
-	}
-
-	public int getSize(final UUID playListUUID) {
-		return viewController.getSize(playListUUID);
-	}
-
-	public void removeItem(final UUID playListUUID, final int index, final boolean stop) {
-		viewController.removeItem(playListUUID, index, stop);
-	}
-
-	public void remove(final UUID uuid) {
-		viewController.remove(uuid);
-	}
-
-	public void addItem(final UUID playListUUID, final int index, final String filePath) {
-		viewController.addItem(playListUUID, index, filePath);
-	}
-
-	public int getItemIndex(final UUID playListUUID, final UUID itemUUID) {
-		return viewController.getItemIndex(playListUUID, itemUUID);
-	}
-
-	public void importItems(final UUID sourcePlayListUUID, final List<UUID> itemUUIDs,
-			final UUID playListUUID, final int targetIndex, final boolean copy) {
-		viewController.importItems(sourcePlayListUUID, itemUUIDs, playListUUID,
-				targetIndex, copy);
-	}
-
-	public boolean isRepeatList(final UUID playListUUID) {
-		return viewController.isRepeatList(playListUUID);
-	}
-
-	public boolean isRandomizeList(final UUID playListUUID) {
-		return viewController.isRandomizeList(playListUUID);
-	}
-
-	public boolean isStopAfterEachSound(final UUID playListUUID) {
-		return viewController.isStopAfterEachSound(playListUUID);
-	}
-
-	public float getRandomizeVolumeFrom(final UUID playListUUID) {
-		return viewController.getRandomizeVolumeFrom(playListUUID);
-	}
-
-	public int getFadeIn(final UUID playListUUID) {
-		return viewController.getFadeIn(playListUUID);
-	}
-
-	public int getOverlap(final UUID playListUUID) {
-		return viewController.getOverlap(playListUUID);
-	}
-
-	public float getVolume(final UUID playListUUID) {
-		return viewController.getVolume(playListUUID);
-	}
-
-	public Action getPlayAction(final UUID playListUUID, final UUID itemUUID, final String description) {
-		return viewController.getPlayAction(playListUUID, itemUUID, description);
-	}
-
-	public Action getPlayIndexAction(final UUID playListUUID, final String description) {
-		return viewController.getPlayIndexAction(playListUUID, description);
-	}
-
-	public Action getItemChainWithAction(final UUID playListUUID, final UUID source, final String description) {
-		return viewController.getItemChainWithAction(playListUUID, source, description);
-	}
-
-	public Action getPlayAction(final UUID playListUUID, final int index, final String description) {
-		return viewController.getPlayAction(playListUUID, index, description);
-	}
-
-	public Action getPlayPlayListAction(final UUID playListUUID, final String description) {
-		return viewController.getPlayAction(playListUUID, description);
-	}
-
-	public Action getPlayItemAction(final UUID playListUUID, final String description) {
-		return viewController.getPlayItemAction(playListUUID, description);
-	}
-
-	public Action getRandomizeListAction(final UUID playListUUID, final String description) {
-		return viewController.getRandomizeListAction(playListUUID, description);
-	}
-
-	public Action getRandomizeVolumeFromAction(final UUID playListUUID, final String description) {
-		return viewController.getRandomizeVolumeFromAction(playListUUID, description);
-	}
-
-	public Action getRandomizeVolumeToAction(final UUID playListUUID, final String description) {
-		return viewController.getRandomizeVolumeToAction(playListUUID, description);
-	}
-
-	public Action getStopAfterEachSoundAction(final UUID playListUUID, final String description) {
-		return viewController.getStopAfterEachSoundAction(playListUUID, description);
-	}
-
-	public Action getFadeInAction(final UUID playListUUID, final String description) {
-		return viewController.getFadeInAction(playListUUID, description);
-	}
-
-	public Action getFadeOutAction(final UUID playListUUID, final String description) {
-		return viewController.getFadeOutAction(playListUUID, description);
-	}
-
-	public Action getOverlapAction(final UUID playListUUID, final String description) {
-		return viewController.getOverlapAction(playListUUID, description);
-	}
-
-	public Action getVolumeAction(final UUID playListUUID, final String description) {
-		return viewController.getVolumeAction(playListUUID, description);
 	}
 
 	public Action getSaveAction() {
@@ -247,22 +158,6 @@ public class GUIController implements IGUILadder {
 
 	public Action getLoadAction() {
 		return viewController.getLoadAction();
-	}
-
-	public Action getStopAction(final UUID playListUUID, final String description) {
-		return viewController.getStopAction(playListUUID, description);
-	}
-
-	public Action getRepeatListAction(final UUID playListUUID, final String description) {
-		return viewController.getRepeatListAction(playListUUID, description);
-	}
-
-	public float getRandomizeVolumeTo(final UUID playListUUID) {
-		return viewController.getRandomizeVolumeTo(playListUUID);
-	}
-
-	public int getFadeOut(final UUID playListUUID) {
-		return viewController.getFadeOut(playListUUID);
 	}
 
 	public void executeHotkey(final KeyEvent event) {
@@ -274,27 +169,22 @@ public class GUIController implements IGUILadder {
 	public void setHotkey(final UUID playListSet, final KeyEvent keyEvent, final Action action) {
 		KeyStroke keyStroke = KeyStroke.getKeyStrokeForEvent(keyEvent);
 		String hotkey = keyStroke.getModifiers() + "|" + keyStroke.getKeyCode();
-		viewController.setHotkey(playListSet, hotkey, action);
+		//viewController.setHotkey(playListSet, hotkey, action);
+	}
+
+	public void addSetHotkey(final KeyEvent event, final UUID elementUUID, final Map<String, Object> values) {
+		KeyStroke keyStroke = KeyStroke.getKeyStrokeForEvent(event);
+		String hotkey = keyStroke.getModifiers() + "|" + keyStroke.getKeyCode();
+		viewController.addSetHotkey(hotkey, elementUUID, values);
+	}
+
+	public void addActHotkey(final KeyEvent event, final UUID elementUUID, final String... actions) {
+		KeyStroke keyStroke = KeyStroke.getKeyStrokeForEvent(event);
+		String hotkey = keyStroke.getModifiers() + "|" + keyStroke.getKeyCode();
+		viewController.addActHotkey(hotkey, elementUUID, actions);
 	}
 
 	public void removePlayList(final UUID playListUUID) {
-	}
-
-	public List<UUID> getPlayListUUIDs(final UUID parent) {
-		return viewController.getPlayListUUIDs(parent);
-	}
-
-	public List<UUID> getPlayListSetUUIDs(final UUID parent) {
-		return viewController.getPlayListSetUUIDs(parent);
-	}
-
-	public void setActive(final UUID playListSetUUID) {
-		viewController.setActive(playListSetUUID);
-	}
-
-	public void shiftElement(final UUID uuid, final int x, final int y,
-			final PositionType alignment) {
-		viewController.shiftElement(uuid, x, y, alignment);
 	}
 
 	@Override
@@ -332,8 +222,12 @@ public class GUIController implements IGUILadder {
 		return viewController.getHotkey(action);
 	}
 
-	public void removeHotkey(final Action action) {
-		viewController.removeHotkey(action);
+	//	public void removeHotkey(final Action action) {
+	//		viewController.removeHotkey(action);
+	//	}
+
+	public void removeHotkey(final UUID elementUUID, final String hotkey, final Action action) {
+		viewController.removeHotkey(elementUUID, hotkey, action);
 	}
 
 	protected class ResetPluginAction extends AbstractAction
@@ -359,50 +253,9 @@ public class GUIController implements IGUILadder {
 		}
 	}
 
-	public Action getSetRepeatItemAction(final UUID uuid, final String description) {
-		return viewController.getSetRepeatItemAction(uuid, description);
-	}
-
-	public Action getSetItemChainWithAction(final UUID uuid, final String description) {
-		return viewController.getSetItemChainWithAction(uuid, description);
-	}
-
-	public Layout getLayout(final UUID playListSetUUID) {
-		return viewController.getLayout(playListSetUUID);
-	}
-
-	public UUID addPlayListSet(final UUID parentSetUUID) {
-		return viewController.addPlayListSet(parentSetUUID);
-	}
-
-	public UUID addPlayList(final UUID parentSetUUID) {
-		return viewController.addPlayList(parentSetUUID);
-	}
-
-
 	public void reload() {
 		componentMap.clear();
 		resetTabs();
-	}
-
-	public void setTitle(final UUID uuid, final String newTitle) {
-		viewController.setTitle(uuid, newTitle);
-	}
-
-	public String getTitle(final UUID uuid) {
-		return viewController.getTitle(uuid);
-	}
-
-	public boolean isActive(final UUID elementUUID) {
-		return viewController.isActive(elementUUID);
-	}
-
-	public boolean getAutoplay(final UUID elementUUID) {
-		return viewController.getAutoplay(elementUUID);
-	}
-
-	public void setAutoplay(final UUID elementUUID, final boolean autoplay) {
-		viewController.setAutoplay(elementUUID, autoplay);
 	}
 
 	public List<Tuple<Action, String>> getHotkeyComments() {
@@ -423,7 +276,7 @@ public class GUIController implements IGUILadder {
 		int result = fileChooser.showOpenDialog(null);
 		if (result == JFileChooser.APPROVE_OPTION)
 			for (File file : fileChooser.getSelectedFiles()) {
-				addItem(playListUUID, -1, file.getAbsolutePath());
+				add(playListUUID, "PLAYLISTITEM", file.getAbsolutePath(), -1);
 			}
 
 	}
@@ -436,7 +289,7 @@ public class GUIController implements IGUILadder {
 			for (File file : fileChooser.getSelectedFiles())
 				filePaths.addAll(directoryToFilePathList(file));
 		for (String path : filePaths)
-			addItem(playListUUID, -1, path);
+			add(playListUUID, "PLAYLISTITEM", path, -1);
 	}
 
 	private List<String> directoryToFilePathList(final File folder) {

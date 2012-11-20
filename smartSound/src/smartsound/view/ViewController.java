@@ -20,21 +20,18 @@ package smartsound.view;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 
+import smartsound.common.IElement.NameValuePair;
 import smartsound.common.IObserver;
 import smartsound.common.PropertyMap;
 import smartsound.common.Tuple;
 import smartsound.controller.AbstractController;
-import smartsound.player.ItemData;
 import smartsound.player.LoadingException;
-import smartsound.view.Layout.Type;
 import smartsound.view.gui.GUIController;
 
 public class ViewController extends AbstractViewController implements IObserver
@@ -42,11 +39,10 @@ public class ViewController extends AbstractViewController implements IObserver
 
 	private final AbstractController controller;
 	private final List<GUIController> guis;
-	private final Map<UUID, Map<String, Set<Action>>> hotkeyMap;
+	private final Map<UUID, Map<String, Set<Hotkey>>> hotkeyMap;
 	private final Map<UUID, Layout> layoutMap = new HashMap<UUID, Layout>();
-	private final Map<UUID, Action> uuidToActionMap = new HashMap<UUID, Action>();
+	private final Map<UUID, Hotkey> uuidToActionMap = new HashMap<UUID, Hotkey>();
 	private final Map<UUID, String> commentMap = new HashMap<UUID, String>();
-	private Layout rootLayout;
 
 	private static final Map<String, Class<?>> primitiveTypesMap = new HashMap<String,Class<?>>();
 	static {
@@ -64,11 +60,10 @@ public class ViewController extends AbstractViewController implements IObserver
 	public ViewController(final AbstractController controller)
 	{
 		guis = new LinkedList<GUIController>();
-		hotkeyMap = new HashMap<UUID, Map<String, Set<Action>>>();
+		hotkeyMap = new HashMap<UUID, Map<String, Set<Hotkey>>>();
 		this.controller = controller;
-		rootLayout = new Layout(this, null, Type.ROW);
+		LayoutManager.setViewController(this);
 
-		controller.addObserver(rootLayout, null);
 		controller.addObserver(this);
 	}
 
@@ -82,477 +77,6 @@ public class ViewController extends AbstractViewController implements IObserver
 	public void addObserver(final IObserver observer, final UUID observableUUID)
 	{
 		controller.addObserver(observer, observableUUID);
-	}
-
-	@Override
-	public ItemData getItemData(final UUID playListUUID, final int index)
-	{
-		return controller.getItemData(playListUUID, index);
-	}
-
-	@Override
-	public int getSize(final UUID playListUUID)
-	{
-		return controller.getSize(playListUUID);
-	}
-
-	@Override
-	public void addItem(final UUID playListUUID, final int index, final String filePath)
-	{
-		controller.addItem(playListUUID, index, filePath);
-	}
-
-	@Override
-	public void addItem(final UUID playListUUID, final String filePath)
-	{
-		controller.addItem(playListUUID, filePath);
-	}
-
-	@Override
-	public void removeItem(final UUID playListUUID, final int index, final boolean stop)
-	{
-		controller.removeItem(playListUUID, index, stop);
-	}
-
-	@Override
-	public int getItemIndex(final UUID playListUUID, final UUID itemUUID)
-	{
-		return controller.getItemIndex(playListUUID, itemUUID);
-	}
-
-	@Override
-	public UUID addPlayList(final UUID parentSetUUID)
-	{
-		UUID uuid = controller.addPlayList(parentSetUUID);
-		return uuid;
-	}
-
-	@Override
-	public void deletePlayList(final UUID playListUUID)
-	{
-		controller.deletePlayList(playListUUID);
-	}
-
-	@Override
-	public void importItems(final UUID sourcePlayListUUID, final List<UUID> itemUUIDs, final UUID playListUUID, final int targetIndex, final boolean copy)
-	{
-		controller.importItems(sourcePlayListUUID, itemUUIDs, playListUUID, targetIndex, copy);
-	}
-
-	@Override
-	public boolean itemIsActive(final UUID playListUUID, final UUID itemUUID)
-	{
-		return controller.itemIsActive(playListUUID, itemUUID);
-	}
-
-	@Override
-	public String getItemName(final UUID playListUUID, final UUID itemUUID)
-	{
-		return controller.getItemName(playListUUID, itemUUID);
-	}
-
-	@Override
-	public UUID getItemChainWith(final UUID playListUUID, final UUID itemUUID)
-	{
-		return controller.getItemChainWith(playListUUID, itemUUID);
-	}
-
-	@Override
-	public Action getItemChainWithAction(final UUID playListUUID, final UUID itemUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setItemChainWith", new Class[] {
-					UUID.class, UUID.class, UUID.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID, itemUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setItemChainWith(final UUID playListUUID, final UUID source, final UUID target)
-	{
-		controller.setItemChainWith(playListUUID, source, target);
-	}
-
-	@Override
-	public boolean itemIsRepeating(final UUID playListUUID, final UUID itemUUID)
-	{
-		return controller.itemIsRepeating(playListUUID, itemUUID);
-	}
-
-	@Override
-	public Action getItemIsRepeatingAction(final UUID playListUUID, final UUID itemUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setItemIsRepeating", new Class[] {
-					UUID.class, UUID.class, boolean.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID, itemUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setItemIsRepeating(final UUID playListUUID, final UUID itemUUID, final boolean repeating)
-	{
-		controller.setItemIsRepeating(playListUUID, itemUUID, repeating);
-	}
-
-	@Override
-	public boolean isRepeatList(final UUID playListUUID)
-	{
-		return controller.isRepeatList(playListUUID);
-	}
-
-	@Override
-	public Action getRepeatListAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method =ViewController.class.getMethod("setRepeatList", new Class[] {
-					UUID.class, boolean.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setRepeatList(final UUID playListUUID, final boolean repeatList)
-	{
-		controller.setRepeatList(playListUUID, repeatList);
-	}
-
-	@Override
-	public boolean isRandomizeList(final UUID playListUUID)
-	{
-		return controller.isRandomizeList(playListUUID);
-	}
-
-	@Override
-	public boolean isStopAfterEachSound(final UUID playListUUID)
-	{
-		return controller.isStopAfterEachSound(playListUUID);
-	}
-
-	@Override
-	public float getRandomizeVolumeFrom(final UUID playListUUID)
-	{
-		return controller.getRandomizeVolumeFrom(playListUUID);
-	}
-
-	@Override
-	public float getRandomizeVolumeTo(final UUID playListUUID)
-	{
-		return controller.getRandomizeVolumeTo(playListUUID);
-	}
-
-	@Override
-	public int getFadeIn(final UUID playListUUID)
-	{
-		return controller.getFadeIn(playListUUID);
-	}
-
-	@Override
-	public int getFadeOut(final UUID playListUUID)
-	{
-		return controller.getFadeOut(playListUUID);
-	}
-
-	@Override
-	public int getOverlap(final UUID playListUUID)
-	{
-		return controller.getOverlap(playListUUID);
-	}
-
-	@Override
-	public float getVolume(final UUID playListUUID)
-	{
-		return controller.getVolume(playListUUID);
-	}
-
-	@Override
-	public Action getPlayAction(final UUID playListUUID, final int index, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("play", new Class[] {
-					UUID.class, int.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID, Integer.valueOf(index)
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void play(final UUID playListUUID, final int index)
-	{
-		controller.play(playListUUID, index);
-	}
-
-	@Override
-	public Action getPlayAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("play", new Class[] {
-					UUID.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void play(final UUID playListUUID)
-	{
-		controller.play(playListUUID);
-	}
-
-	@Override
-	public Action getRandomizeListAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setRandomizeList", new Class[] {
-					UUID.class, boolean.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setRandomizeList(final UUID playListUUID, final boolean randomize)
-	{
-		controller.setRandomizeList(playListUUID, randomize);
-	}
-
-	@Override
-	public Action getRandomizeVolumeFromAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setRandomizeVolumeFrom", new Class[] {
-					UUID.class, float.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setRandomizeVolumeFrom(final UUID playListUUID, final float value)
-	{
-		controller.setRandomizeVolumeFrom(playListUUID, value);
-	}
-
-	@Override
-	public Action getRandomizeVolumeToAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setRandomizeVolumeTo", new Class[] {
-					UUID.class, float.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setRandomizeVolumeTo(final UUID playListUUID, final float value)
-	{
-		controller.setRandomizeVolumeTo(playListUUID, value);
-	}
-
-	@Override
-	public Action getStopAfterEachSoundAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setStopAfterEachSound", new Class[] {
-					UUID.class, boolean.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setStopAfterEachSound(final UUID playListUUID, final boolean stopAfterEachSound)
-	{
-		controller.setStopAfterEachSound(playListUUID, stopAfterEachSound);
-	}
-
-	@Override
-	public Action getFadeInAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setFadeIn", new Class[] {
-					UUID.class, int.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setFadeIn(final UUID playListUUID, final int value)
-	{
-		controller.setFadeIn(playListUUID, value);
-	}
-
-	@Override
-	public Action getFadeOutAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setFadeOut", new Class[] {
-					UUID.class, int.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setFadeOut(final UUID playListUUID, final int value)
-	{
-		controller.setFadeOut(playListUUID, value);
-	}
-
-	@Override
-	public Action getOverlapAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setOverlap", new Class[] {
-					UUID.class, int.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setOverlap(final UUID playListUUID, final int value)
-	{
-		controller.setOverlap(playListUUID, value);
-	}
-
-	@Override
-	public Action getVolumeAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setVolume", new Class[] {
-					UUID.class, float.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void setVolume(final UUID playListUUID, final float value)
-	{
-		controller.setVolume(playListUUID, value);
 	}
 
 	@Override
@@ -604,117 +128,27 @@ public class ViewController extends AbstractViewController implements IObserver
 	}
 
 	@Override
-	public Action getStopAction(final UUID playListUUID, final String description)
+	public void addSetHotkey(final String hotkey, final UUID elementUUID, final Map<String, Object> values)
 	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("stop", new Class[] {
-					UUID.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
 
-	public void stop(final UUID playListUUID)
-	{
-		controller.stop(playListUUID);
-	}
-
-	@Override
-	public Action getPlayIndexAction(final UUID playListUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("play", new Class[] {
-					UUID.class, int.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	@Override
-	public Action getPlayAction(final UUID playListUUID, final UUID itemUUID, final String description)
-	{
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("play", new Class[] {
-					UUID.class, UUID.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID, itemUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	@Override
-	public Action getPlayItemAction(final UUID playListUUID, final String description) {
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("play", new Class[] {
-					UUID.class, UUID.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	public void play(final UUID playListUUID, final UUID itemUUID)
-	{
-		controller.play(playListUUID, controller.getItemIndex(playListUUID, itemUUID));
-	}
-
-	@Override
-	public List<UUID> getPlayListUUIDs(final UUID parentPlayListSet)
-	{
-		return controller.getPlayListUUIDs(parentPlayListSet);
-	}
-
-	@Override
-	public void setHotkey(final UUID uuid, final String hotkey, final Action action)
-	{
-		UUID key = controller.getRootParent(uuid);
-		if (!hotkeyMap.containsKey(key))
-			hotkeyMap.put(key, new HashMap<String, Set<Action>>());
-		Map<String, Set<Action>> subMap = hotkeyMap.get(key);
+		//TODO: Fix
+		UUID key = elementUUID;
+		if (!hotkeyMap.containsKey(elementUUID))
+			hotkeyMap.put(key, new HashMap<String, Set<Hotkey>>());
+		Map<String, Set<Hotkey>> subMap = hotkeyMap.get(key);
 
 		if (!subMap.containsKey(hotkey)) {
-			subMap.put(hotkey, new HashSet<Action>());
+			subMap.put(hotkey, new HashSet<Hotkey>());
 		}
-		subMap.get(hotkey).add(action);
-		uuidToActionMap.put(action.getUUID(), action);
+
+		Hotkey h = new SetHotkey(hotkey, elementUUID, values);
+		subMap.get(hotkey).add(h);
+		uuidToActionMap.put(h.getElementUUID(), h);
+	}
+
+	@Override
+	public void addActHotkey(final String hotkey, final UUID elementUUID, final String... actionTypes) {
+
 	}
 
 	@Override
@@ -722,52 +156,32 @@ public class ViewController extends AbstractViewController implements IObserver
 	{
 		executeHotkey(null, hotkey);
 
-		UUID key = getActivePlayListSet();
-		if (key != null)
-			executeHotkey(key, hotkey);
+		NameValuePair[] pairs = get((UUID) null, "ACTIVESET");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof UUID;
+
+		UUID activeSet = (UUID) pairs[0].value;
+
+		for (UUID uuid : hotkeyMap.keySet()) {
+			if (uuid != null && activeSet.equals(get(uuid, "ROOTPARENT")[0].value)) {
+				executeHotkey(uuid, hotkey);
+			}
+		}
 
 	}
 
 	private void executeHotkey(final UUID playListSetUUID, final String hotkey) {
 		if (hotkeyMap.containsKey(playListSetUUID)
 				&& hotkeyMap.get(playListSetUUID).containsKey(hotkey))
-			for (Action action : hotkeyMap.get(playListSetUUID).get(hotkey))
-				action.execute();
-	}
-
-	private UUID getActivePlayListSet() {
-		for (UUID uuid : controller.getPlayListSetUUIDs(null)) {
-			if (isActive(uuid))
-				return uuid;
-		}
-		return null;
-	}
-
-	@Override
-	public void removePlayList(final UUID playListUUID)
-	{
-		GUIController gui;
-		for(Iterator<GUIController> iterator = guis.iterator(); iterator.hasNext(); gui.removePlayList(playListUUID))
-			gui = iterator.next();
-
-	}
-
-	@Override
-	public void shiftElement(final UUID elementUUID, final int x, final int y, final PositionType alignment) {
-		UUID parentUUID = controller.getParent(elementUUID);
-
-		if (parentUUID != null)
-			layoutMap.get(parentUUID).shiftElement(elementUUID, x, y, alignment);
-		else {
-			rootLayout.shiftElement(elementUUID, x, y, alignment);
-		}
+			for (Hotkey h : hotkeyMap.get(playListSetUUID).get(hotkey))
+				h.executeHotkey(this);
 	}
 
 	@Override
 	public List<Tuple<String, Action>> getHotkeys(final UUID sceneUUID, final Action parent) {
-		List<Tuple<String,Action>> result = new LinkedList<Tuple<String,Action>>();
+		/*List<Tuple<String,Action>> result = new LinkedList<Tuple<String,Action>>();
 
-		for (Entry<UUID, Map<String, Set<Action>>> mapEntry : hotkeyMap.entrySet())
+		for (Entry<UUID, Map<String, Set<Hotkey>>> mapEntry : hotkeyMap.entrySet())
 			if (sceneUUID == null || sceneUUID.equals(mapEntry.getKey()))
 				for (Entry<String,Set<Action>> entry : mapEntry.getValue().entrySet()) {
 					for (Action action : entry.getValue()) {
@@ -776,12 +190,13 @@ public class ViewController extends AbstractViewController implements IObserver
 					}
 
 				}
-		return result;
+		return result;*/
+		return null;
 	}
 
 	@Override
 	public List<Tuple<String,Action>> getHotkeys(final UUID sceneUUID) {
-		List<Tuple<String, Action>> result = new LinkedList<Tuple<String, Action>>();
+		/*List<Tuple<String, Action>> result = new LinkedList<Tuple<String, Action>>();
 
 		if (hotkeyMap.containsKey(sceneUUID))
 			for (Entry<String, Set<Action>> entry : hotkeyMap.get(sceneUUID).entrySet()) {
@@ -790,7 +205,8 @@ public class ViewController extends AbstractViewController implements IObserver
 				}
 
 			}
-		return result;
+		return result;*/
+		return null;
 	}
 
 	@Override
@@ -800,6 +216,8 @@ public class ViewController extends AbstractViewController implements IObserver
 
 	@Override
 	public void removeHotkey(final UUID elementUUID, final String hotkey, final Action action) {
+		//TODO: Fix
+		/*
 		UUID playListSetUUID = controller.getRootParent(elementUUID);
 
 		if (!hotkeyMap.containsKey(playListSetUUID))
@@ -815,12 +233,13 @@ public class ViewController extends AbstractViewController implements IObserver
 
 		if (hotkeyMap.get(playListSetUUID).isEmpty())
 			hotkeyMap.remove(playListSetUUID);
+		 */
 	}
 
 	@Override
 	public PropertyMap getPropertyMap() {
 		PropertyMap result = new PropertyMap(UUID.randomUUID());
-		result.put("type", ViewController.class.getCanonicalName());
+		/*result.put("type", ViewController.class.getCanonicalName());
 
 		PropertyMap actionPropertyMap;
 		String actionUUIDs;
@@ -843,10 +262,10 @@ public class ViewController extends AbstractViewController implements IObserver
 
 		for (Entry<UUID, String> entry : commentMap.entrySet()) {
 			result.put("comment:" + entry.getKey(), entry.getValue());
-		}
+		}*/
 
-		result.put("rootlayout", rootLayout.getUUID().toString());
-		result.addPropertyMap(rootLayout.getPropertyMap());
+		//result.put("rootlayout", rootLayout.getUUID().toString());
+		//result.addPropertyMap(rootLayout.getPropertyMap());
 		return result;
 	}
 
@@ -935,148 +354,77 @@ public class ViewController extends AbstractViewController implements IObserver
 	}
 
 	@Override
-	public void loadFromPropertyMap(final PropertyMap pMap) throws LoadingException {
+	public void loadFromPropertyMap(final PropertyMap pMap)
+			throws LoadingException {
 		if (!pMap.get("type").equals(getClass().getCanonicalName())) {
 			throw new LoadingException();
 		}
-
-		removeAllHotkeys();
-		layoutMap.clear();
-		uuidToActionMap.clear();
-		Layout layout;
-		Action action;
-		UUID rootLayoutUUID = UUID.fromString(pMap.get("rootlayout"));
-		for (PropertyMap map : pMap.getNestedMaps()) {
-			if (map.get("type").equals(Action.class.getCanonicalName())) {
-				action = propertyMapToAction(map);
-				uuidToActionMap.put(action.getUUID(), action);
-			} else if (map.get("type").equals(Layout.class.getCanonicalName())) {
-				layout = new Layout(this, map);
-				if (layout.getUUID().equals(rootLayoutUUID)) {
-					rootLayout = layout;
-				} else {
-					layoutMap.put(layout.getParentUUID(), layout);
-				}
-				controller.addObserver(this, layout.getParentUUID());
-				controller.addObserver(layout, layout.getParentUUID());
-			}
-		}
-
-		String keyString;
-		String[] keySplit;
-		UUID uuidKey;
-		String hotkey;
-		Map<String, Set<Action>> actionSetMap;
-		for (String key : pMap.getKeys()) {
-			if (key.startsWith("hotkey:")) {
-				keyString = key.replaceFirst("hotkey:", "");
-				keySplit = keyString.split(",");
-				assert keySplit.length == 2;
-
-				uuidKey = keySplit[0].equals("null") ? null : UUID.fromString(keySplit[0]);
-				hotkey = keySplit[1];
-
-				if (!hotkeyMap.containsKey(uuidKey))
-					hotkeyMap.put(uuidKey, new HashMap<String, Set<Action>>());
-
-				actionSetMap = hotkeyMap.get(uuidKey);
-
-				if (!actionSetMap.containsKey(hotkey)) {
-					actionSetMap.put(hotkey, new HashSet<Action>());
-				}
-				for (String split : pMap.get(key).split(" "))
-					actionSetMap.get(hotkey).add(uuidToActionMap.get(UUID.fromString(split)));
-			} else if (key.startsWith("comment:")) {
-				keyString = key.replaceFirst("comment:", "");
-				commentMap.put(UUID.fromString(keyString), pMap.get(key));
-			}
-		}
+		/*
+		 * removeAllHotkeys(); layoutMap.clear(); uuidToActionMap.clear();
+		 * Layout layout; Action action; UUID rootLayoutUUID =
+		 * UUID.fromString(pMap.get("rootlayout")); for (PropertyMap map :
+		 * pMap.getNestedMaps()) { if
+		 * (map.get("type").equals(Action.class.getCanonicalName())) { action =
+		 * propertyMapToAction(map); uuidToActionMap.put(action.getUUID(),
+		 * action); } else if
+		 * (map.get("type").equals(Layout.class.getCanonicalName())) { layout =
+		 * new Layout(this, map); if (layout.getUUID().equals(rootLayoutUUID)) {
+		 * rootLayout = layout; } else { layoutMap.put(layout.getParentUUID(),
+		 * layout); } controller.addObserver(this, layout.getParentUUID());
+		 * controller.addObserver(layout, layout.getParentUUID()); } }
+		 * 
+		 * String keyString; String[] keySplit; UUID uuidKey; String hotkey;
+		 * Map<String, Set<Action>> actionSetMap; for (String key :
+		 * pMap.getKeys()) { if (key.startsWith("hotkey:")) { keyString =
+		 * key.replaceFirst("hotkey:", ""); keySplit = keyString.split(",");
+		 * assert keySplit.length == 2;
+		 * 
+		 * uuidKey = keySplit[0].equals("null") ? null :
+		 * UUID.fromString(keySplit[0]); hotkey = keySplit[1];
+		 * 
+		 * if (!hotkeyMap.containsKey(uuidKey)) hotkeyMap.put(uuidKey, new
+		 * HashMap<String, Set<Action>>());
+		 * 
+		 * actionSetMap = hotkeyMap.get(uuidKey);
+		 * 
+		 * if (!actionSetMap.containsKey(hotkey)) { actionSetMap.put(hotkey, new
+		 * HashSet<Action>()); } for (String split : pMap.get(key).split(" ")) {
+		 * actionSetMap
+		 * .get(hotkey).add(uuidToActionMap.get(UUID.fromString(split))); } }
+		 * else if (key.startsWith("comment:")) { keyString =
+		 * key.replaceFirst("comment:", "");
+		 * commentMap.put(UUID.fromString(keyString), pMap.get(key)); } }
+		 */
 	}
 
 	@Override
 	public String getHotkey(final Action action) {
+		/*
 		for (Map<String, Set<Action>> actionSetMap : hotkeyMap.values())
 			for (Entry<String,Set<Action>> entry : actionSetMap.entrySet()) {
 				if (entry.getValue().contains(action)) {
 					return entry.getKey();
 				}
 			}
+		 */
 		return null;
 	}
 
-	@Override
-	public void removeHotkey(final Action action) {
-		for (Map<String, Set<Action>> actionSetMap : hotkeyMap.values())
-			for (Entry<String,Set<Action>> entry : actionSetMap.entrySet()) {
-				if(entry.getValue().remove(action)) {
-					if (entry.getValue().isEmpty()) {
-						hotkeyMap.remove(entry.getKey());
-					}
-					return;
-				}
-			}
-	}
-
-	@Override
-	public Action getSetRepeatItemAction(final UUID playListUUID, final String description) {
-		Method method;
-		try {
-			method = ViewController.class.getMethod("setItemIsRepeating",
-					new Class[] { UUID.class, UUID.class, boolean.class });
-		} catch (Exception e) {
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = { playListUUID };
-		return new Action(method, this, description, params);
-	}
-
-	@Override
-	public Action getSetItemChainWithAction(final UUID playListUUID, final String description) {
-		Method method;
-		try
-		{
-			method = ViewController.class.getMethod("setItemChainWith", new Class[] {
-					UUID.class, UUID.class, UUID.class
-			});
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-		Object params[] = {
-				playListUUID
-		};
-		return new Action(method, this, description, params);
-	}
-
-	@Override
-	public List<UUID> getPlayListSetUUIDs(final UUID parentSetUUID) {
-		return controller.getPlayListSetUUIDs(parentSetUUID);
-	}
-
-	@Override
-	public String getTitle(final UUID uuid) {
-		return controller.getTitle(uuid);
-	}
-
-	@Override
-	public UUID getParent(final UUID child) {
-		return controller.getParent(child);
-	}
-
-	@Override
-	public Layout getLayout(final UUID parentSetUUID) {
-		if (parentSetUUID == null)
-			return rootLayout;
-		return layoutMap.get(parentSetUUID).copy();
-	}
-
-	@Override
-	public UUID addPlayListSet(final UUID parentSetUUID) {
-		return controller.addPlayListSet(parentSetUUID);
-	}
+	//	@Override
+	//	public void removeHotkey(final Action action) {
+	//		Map<String, Set<Action>> actionSetMap = null;
+	//		for (Entry<UUID, Map<String, Set<Action>>> hotkeyMapEntry : hotkeyMap.entrySet()) {
+	//			actionSetMap = hotkeyMapEntry.getValue();
+	//			for (Entry<String,Set<Action>> entry : actionSetMap.entrySet()) {
+	//				if(entry.getValue().remove(action)) {
+	//					if (entry.getValue().isEmpty()) {
+	//						hotkeyMap.remove(hotkeyMapEntry.getKey());
+	//					}
+	//					return;
+	//				}
+	//			}
+	//		}
+	//	}
 
 	@Override
 	public void reloadView() {
@@ -1086,17 +434,15 @@ public class ViewController extends AbstractViewController implements IObserver
 	}
 
 	@Override
-	public void setTitle(final UUID uuid, final String newTitle) {
-		controller.setTitle(uuid, newTitle);
-	}
-
-	@Override
 	public void remove(final UUID uuid) {
 		controller.remove(uuid);
 	}
 
 	@Override
 	public void update(final UUID uuid) {
+		//TODO: Fix
+
+		/*
 		if (uuid == null) {
 			Set<UUID> currentSet = new HashSet<UUID>();
 			for (UUID u : controller.getPlayListSetUUIDs(null)) {
@@ -1113,71 +459,44 @@ public class ViewController extends AbstractViewController implements IObserver
 		}
 
 		refreshLayout(uuid);
-	}
-
-	private void refreshLayout(final UUID uuid) {
-		Layout layout = layoutMap.get(uuid);
-		if (layout == null) {
-			layout = new Layout(this, uuid, Type.GRID);
-			controller.addObserver(layout, uuid);
-			layoutMap.put(uuid, layout);
-		}
-	}
-
-	@Override
-	public void addLayoutObserver(final ILayoutObserver observer, final UUID observableUUID) {
-		if (observableUUID == null) {
-			rootLayout.addLayoutObserver(observer);
-			return;
-		}
-
-		layoutMap.get(observableUUID).addLayoutObserver(observer);
-	}
-
-	@Override
-	public void removeLayoutObserver(final ILayoutObserver observer,
-			final UUID observableUUID) {
-		if (observableUUID == null) {
-			rootLayout.removeLayoutObserver(observer);
-			return;
-		}
-
-		layoutMap.get(observableUUID).removeLayoutObserver(observer);
-	}
-
-	@Override
-	public boolean isActive(final UUID elementUUID) {
-		return controller.isActive(elementUUID);
-	}
-
-	@Override
-	public void setAutoplay(final UUID elementUUID, final boolean autoplay) {
-		controller.setAutoplay(elementUUID, autoplay);
-	}
-
-	@Override
-	public boolean getAutoplay(final UUID elementUUID) {
-		return controller.getAutoplay(elementUUID);
-	}
-
-	@Override
-	public void setActive(final UUID playListSetUUID) {
-		controller.setActive(playListSetUUID);
+		 */
 	}
 
 	@Override
 	public List<Tuple<Action, String>> getHotkeyComments() {
+		/*
 		List<Tuple<Action, String>> result = new LinkedList<Tuple<Action, String>>();
 		for (Entry<UUID, String> descriptionMapEntry : commentMap.entrySet()) {
 			System.out.println("Added " + uuidToActionMap.get(descriptionMapEntry.getKey()) + "," + descriptionMapEntry.getValue());
 			result.add(new Tuple<Action, String>(uuidToActionMap.get(descriptionMapEntry.getKey()), descriptionMapEntry.getValue()));
 		}
-		return result;
+		return result;*/
+		return null;
 	}
 
 	@Override
 	public void setHotkeyDescription(final Action action, final String description) {
 		System.out.println("Putting " + action + "," + description);
 		commentMap.put(action.getUUID(), description);
+	}
+
+	@Override
+	public UUID add(final UUID parent, final String elementType, final Object... params) {
+		return controller.add(parent, elementType, params);
+	}
+
+	@Override
+	public NameValuePair[] get(final UUID uuid, final String... propertyNames) {
+		return controller.get(uuid, propertyNames);
+	}
+
+	@Override
+	public void set(final UUID uuid, final NameValuePair... params) {
+		controller.set(uuid, params);
+	}
+
+	@Override
+	public void act(final UUID uuid, final String... actionTypes) {
+		controller.act(uuid, actionTypes);
 	}
 }

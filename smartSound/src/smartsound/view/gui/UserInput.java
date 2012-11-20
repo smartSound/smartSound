@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -22,8 +22,9 @@ import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import javax.swing.AbstractAction;
@@ -31,21 +32,26 @@ import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JDialog;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
+import javax.swing.JToggleButton;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 
 public class UserInput extends JDialog {
-	static Object getInput(Component comp, Object... possibilities) {
+
+	static Object getInput(final Component comp, final Object... possibilities) {
+		return getInput(comp, false, possibilities);
+	}
+
+	static Object getInput(final Component comp, final boolean multipleSelect, final Object... possibilities) {
 		JPanel panel = new JPanel(new GridBagLayout());
 		ButtonGroup btnGroup = new ButtonGroup();
-		
-		
+
 		GridBagConstraints c = new GridBagConstraints();
 		c.gridx = 0;
 		c.gridy = 0;
@@ -53,74 +59,89 @@ public class UserInput extends JDialog {
 		c.weighty = 1;
 		c.anchor = GridBagConstraints.LINE_START;
 		c.fill = GridBagConstraints.HORIZONTAL;
-		
-		panel.add(new JLabel("Choose an option: "));
+
+		if (multipleSelect)
+			panel.add(new JLabel("Choose some options: "));
+		else
+			panel.add(new JLabel("Choose an option: "));
+
 		c.gridy = 1;
 		panel.add(new JLabel(" "));
-		
-		JRadioButton radioButton;
+
+		JToggleButton button;
+		List<JToggleButton> buttons = new LinkedList<JToggleButton>();
 		Map<String, Object> objectMap = new HashMap<String,Object>();
 		boolean set = false;
 		for (Object obj : possibilities) {
 			c.gridy = c.gridy + 1;
 			objectMap.put(obj.toString(), obj);
-			radioButton = new JRadioButton(obj.toString());
+			if (multipleSelect)
+				button = new JCheckBox(obj.toString());
+			else
+				button = new JRadioButton(obj.toString());
+
+			buttons.add(button);
 			if (!set) {
-				radioButton.setSelected(true);
+				button.setSelected(true);
 				set = true;
 			}
-			panel.add(radioButton,c);
-			btnGroup.add(radioButton);
+			panel.add(button,c);
+			if (!multipleSelect)
+				btnGroup.add(button);
 		}
-		
+
 		c.gridy = c.gridy + 1;
 		c.anchor = GridBagConstraints.SOUTH;
-		
+
 		UserInput input = new UserInput(comp,panel);
 
-		for (AbstractButton aBtn : Collections.list(btnGroup.getElements())) {
+		List<Object> resultList = new LinkedList<Object>();
+		for (AbstractButton aBtn : buttons) {
 			if (aBtn.isSelected()) {
-				return objectMap.get(aBtn.getText());
+				if (multipleSelect)
+					resultList.add(objectMap.get(aBtn.getText()));
+				else
+					return objectMap.get(aBtn.getText());
 			}
 		}
-		return null;
+		return multipleSelect ? resultList : null;
 	}
-	
-	static Double getInput(Component comp, double from, double to, double stepSize, double defaultValue) {
+
+	static Double getInput(final Component comp, final double from, final double to, final double stepSize, final double defaultValue) {
 		JPanel panel = new JPanel(new GridBagLayout());
 		JSpinner spinner = new JSpinner(new SpinnerNumberModel(defaultValue, from, to, stepSize));
-		
+
 		GridBagConstraints c = new GridBagConstraints();
-		
+
 		c.gridx = 0;
 		c.gridy = 0;
 		c.weightx = 1;
 		c.weighty = 1;
 		c.anchor = GridBagConstraints.LINE_START;
 		c.fill = GridBagConstraints.HORIZONTAL;
-		
+
 		panel.add(new JLabel("Choose a value: "), c);
 		c.gridy = 1;
 		panel.add(spinner,c);
-		
+
 		c.gridy = 2;
 		UserInput input = new UserInput(comp, panel);
-		
+
 		return (Double) spinner.getValue();
 	}
-	
-	
-	private UserInput(Component comp, JPanel panel) {
+
+
+	private UserInput(final Component comp, final JPanel panel) {
 		super(SwingUtilities.getWindowAncestor(comp));
-		
+
 		setModalityType(ModalityType.APPLICATION_MODAL);
 		setAlwaysOnTop(true);
 		setUndecorated(true);
 		panel.setBorder(BorderFactory.createEtchedBorder());
 		add(panel);
-		
+
 		GridBagLayout layout = (GridBagLayout) panel.getLayout();
-		
+
 		GridBagConstraints c = new GridBagConstraints();
 		c.gridx = 0;
 		c.weightx = 1;
@@ -129,22 +150,14 @@ public class UserInput extends JDialog {
 		c.fill = GridBagConstraints.HORIZONTAL;
 		panel.add(new JButton(new AbstractAction("OK") {
 			@Override
-			public void actionPerformed(ActionEvent e) {
+			public void actionPerformed(final ActionEvent e) {
 				UserInput.this.setVisible(false);
 			}
 		}), c);
-		
+
 		setMinimumSize(new Dimension(100,-1));
 		pack();
 		setLocation((int) (comp.getLocationOnScreen().getX() + comp.getWidth() / 2 - getWidth() / 2), (int) (comp.getLocationOnScreen().getY() + comp.getHeight() / 2 - getHeight() / 2));
 		setVisible(true);
-	}
-	
-	public static void main(String[] args) {
-		JFrame mainFrame = new JFrame();
-		mainFrame.setVisible(true);
-		mainFrame.setLocation(300,300);
-		mainFrame.setSize(200,200);
-		UserInput.getInput(mainFrame, true, false);
 	}
 }

@@ -44,21 +44,20 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import smartsound.common.IObserver;
-import smartsound.common.Tuple;
+import smartsound.common.IAddObserver;
+import smartsound.common.IElement.NameValuePair;
 import smartsound.view.AbstractViewController.PositionType;
-import smartsound.view.Action;
-import smartsound.view.ILayoutObserver;
-import smartsound.view.Layout;
+import smartsound.view.LayoutManager;
 import smartsound.view.gui.IconManager.IconType;
 
-public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListener, MouseListener, MouseMotionListener, IObserver, ILayoutObserver {
+public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListener, MouseListener, MouseMotionListener, IAddObserver {
 
 	private final IGUILadder parent;
 	private int selectedIndex = getSelectedIndex();
 	protected final Map<Integer, PlayListSetPanel> indexMap = new HashMap<Integer, PlayListSetPanel>();
 	protected final Map<PlayListSetPanel, Integer> invertedIndexMap = new HashMap<PlayListSetPanel, Integer>();
 	protected final Map<UUID, PlayListSetPanel> uuidMap = new HashMap<UUID, PlayListSetPanel>();
+	protected final Map<PlayListSetPanel, PanelWrapper> panelWrapperMap = new HashMap<PlayListSetPanel, PanelWrapper>();
 	private boolean locked = false;
 	protected Point currentClickLocation;
 	private boolean dragging;
@@ -78,8 +77,8 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 		addChangeListener(this);
 		addMouseListener(this);
 		addMouseMotionListener(this);
-		getGUIController().addObserver(this, null);
-		getGUIController().addLayoutObserver(this, null);
+
+		LayoutManager.add((UUID) null, "ADDOBSERVER", this);
 		locked = true;
 	}
 
@@ -111,8 +110,11 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 
 			StringInputDialog dlg = new StringInputDialog(SwingUtilities.getWindowAncestor(this), "Enter a name for the new scene and press enter.", "New scene " + sceneCounter ++);
 			dlg.setVisible(true);
-			UUID uuid = getGUIController().addPlayListSet(null);
-			getGUIController().setTitle(uuid, dlg.getTextInput());
+			UUID uuid = getGUIController().add(null, "PLAYLISTSET");
+
+			NameValuePair[] pairs =  {NameValuePair.create("NAME", dlg.getTextInput())};
+
+			getGUIController().set(uuid, pairs);
 		}
 
 		selectedIndex = getSelectedIndex();
@@ -127,7 +129,7 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 		super.insertTab(title,null, new PanelWrapper(panel, bar), null, newIndex);
 		super.setSelectedIndex(newIndex);
 
-		getGUIController().addObserver(this, panel.getPlayListSetUUID());
+		//getGUIController().addObserver(this, panel.getPlayListSetUUID());
 		indexMap.put(newIndex, panel);
 		invertedIndexMap.put(panel, newIndex);
 		uuidMap.put(panel.getPlayListSetUUID(), panel);
@@ -161,8 +163,7 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 		int index = getTabIndex(p);
 		if (index > -1) {
 			if (e.getClickCount() == 2)
-				getGUIController().getPlayPlayListAction(
-						indexMap.get(index).getPlayListSetUUID(), "Play").execute();
+				getGUIController().act(indexMap.get(index).getPlayListSetUUID(), "PLAY");
 
 			setSelectedIndex(index);
 		}
@@ -216,8 +217,7 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 			int targetIndex = getTabIndex(e.getPoint());
 
 			if (sourceIndex > -1 && sourceIndex < getTabCount() - 1) {
-				UUID sourceUUID = indexMap.get(sourceIndex).getPlayListSetUUID();
-				getGUIController().shiftElement(sourceUUID, targetIndex, 0, PositionType.LEFT);
+				indexMap.get(sourceIndex).moveTo(targetIndex, 0, PositionType.LEFT);
 				setSelectedIndex(sourceIndex > targetIndex ? targetIndex : targetIndex - 1);
 			}
 		}
@@ -259,12 +259,8 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 					KeyEvent event = dialog.getEvent();
 					if (event.getKeyCode() == KeyEvent.VK_ESCAPE)
 						return;
-					parent.getGUIController().setHotkey(
-							null,
-							event,
-							getGUIController().getPlayPlayListAction(
-									indexMap.get(index).getPlayListSetUUID(),
-									"Play '" + getTitleAt(index) + "'"));
+
+					parent.getGUIController().addActHotkey(event, indexMap.get(index).getPlayListSetUUID(), "PLAY");
 					wnd.toFront();
 				}
 
@@ -285,22 +281,26 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 					StringInputDialog dialog = new StringInputDialog(SwingUtilities.getWindowAncestor(TabbedPane.this), "Choose a new name for the scene and press Enter", getTitleAt(index));
 					dialog.setVisible(true);
 					String input = dialog.getTextInput();
-					getGUIController().setTitle(indexMap.get(index).getPlayListSetUUID(), input);
+
+					NameValuePair[] pairs =  {NameValuePair.create("NAME", input)};
+
+					getGUIController().set(indexMap.get(index).getPlayListSetUUID(), pairs);
 				}
 			});
 
 			List<RemoveHotkeyMenuItem> removeList = new LinkedList<RemoveHotkeyMenuItem>();
-			Action action = getGUIController().getPlayPlayListAction(indexMap.get(index).getPlayListSetUUID(), "Play");
+			/*Action action = getGUIController().getPlayPlayListAction(indexMap.get(index).getPlayListSetUUID(), "Play");
 			for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-				removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+				removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, indexMap.get(index).getPlayListSetUUID(), getGUIController()));
 
 			action = getGUIController().getStopAction(indexMap.get(index).getPlayListSetUUID(), "Stop");
 			for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-				removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+				removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, indexMap.get(index).getPlayListSetUUID(), getGUIController()));
 
 			action = getGUIController().getGUIController().getVolumeAction(indexMap.get(index).getPlayListSetUUID(), "Set Volume");
 			for (Tuple<String,Action> t : getGUIController().getHotkeys(action))
-				removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), getGUIController()));
+				removeList.add(new RemoveHotkeyMenuItem(t.second, t.second.getDescription(), t.first, indexMap.get(index).getPlayListSetUUID(), getGUIController()));
+			 */
 
 			if (!removeList.isEmpty()) {
 				hotkeyMenu.add(new TitledSeparator("Remove hotkeys", false));
@@ -312,7 +312,7 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 		propagatePopupMenu(menu, e);
 	}
 
-	@Override
+	/*@Override
 	public void update(final UUID uuid) {
 		if (uuid == null) {
 			removeChangeListener(this);
@@ -324,8 +324,8 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 			PlayListSetPanel panel;
 			for (int i = 0; i < layout.getCount(); i++) {
 				panel = new PlayListSetPanel(this,layout.getByCoordinates(i, 0));
-				newTab(getGUIController().getTitle(layout.getByCoordinates(i, 0)), panel, "");
-				panel.updateLayout();
+				newTab((String) getGUIController().get(layout.getByCoordinates(i, 0), "NAME")[0].value, panel, "");
+				//panel.updateLayout();
 			}
 			addChangeListener(this);
 			return;
@@ -334,16 +334,53 @@ public class TabbedPane extends JTabbedPane implements IGUILadder, ChangeListene
 		assert panel != null;
 		int index = invertedIndexMap.get(panel);
 
-		setTitleAt(index, getGUIController().getTitle(uuid));
+		setTitleAt(index, (String) getGUIController().get(uuid, "NAME")[0].value);
 	}
 
 	@Override
 	public void updateLayout(final Layout layout) {
 		update((UUID) null);
-	}
+	}*/
 
 	public UUID getUUIDAt(final int index) {
 		PlayListSetPanel panel = indexMap.get(index);
 		return panel != null ? panel.getPlayListSetUUID() : null;
+	}
+
+	@Override
+	public void elementAdded(final UUID parentUUID, final UUID newElementUUID) {
+		assert parentUUID == null;
+		Map<String, Object> values = LayoutManager.get(newElementUUID, "ELEMENTUUID");
+		new PlayListSetPanel(this, (UUID) values.get("ELEMENTUUID"), newElementUUID);
+	}
+
+	public void movedTo(final PlayListSetPanel panel, final int x) {
+		int currentIndex = getSelectedIndex();
+		setSelectedIndex(-1);
+		if (invertedIndexMap.containsKey(panel)) {
+			removeTabAt(invertedIndexMap.get(panel));
+		}
+		PanelWrapper wrapper = panelWrapperMap.get(panel);
+		if (wrapper == null) {
+			wrapper = new PanelWrapper(panel, new PlayListSetToolBar(this, panel.getPlayListSetUUID()));
+			panelWrapperMap.put(panel, wrapper);
+		}
+
+		insertTab(panel.getTitle(), null, wrapper, null, x);
+		invertedIndexMap.clear();
+		indexMap.clear();
+		PlayListSetPanel p;
+		for (int i = 0; i < getTabCount() - 1; i++) {
+			PanelWrapper pw = (PanelWrapper) getComponentAt(i);
+			p = (PlayListSetPanel) pw.getPanel();
+			invertedIndexMap.put(p, i);
+			indexMap.put(i, p);
+		}
+		setSelectedIndex(currentIndex);
+		revalidate();
+	}
+
+	public void updateTitle(final PlayListSetPanel playListSetPanel) {
+		setTitleAt(invertedIndexMap.get(playListSetPanel), playListSetPanel.getTitle());
 	}
 }

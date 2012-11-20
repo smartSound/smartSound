@@ -10,6 +10,8 @@ import java.awt.Rectangle;
 
 import javax.swing.JComponent;
 
+import smartsound.common.IElement.NameValuePair;
+
 /*
  *	Copyright (C) 2012 André Becker
  *	
@@ -74,7 +76,11 @@ public class CustomTabbedPaneUI extends javax.swing.plaf.basic.BasicTabbedPaneUI
 		double stringLength = fm.getStringBounds(title, g).getWidth();
 		int x = rect.x + (int) (rect.width/2 - stringLength/2);
 		Color oldColor = g.getColor();
-		if (((TabbedPane) tabPane).getGUIController().isActive(((TabbedPane) tabPane).getUUIDAt(tabIndex))) {
+		NameValuePair[] pairs = ((TabbedPane) tabPane).getGUIController().get(((TabbedPane) tabPane).getUUIDAt(tabIndex), "ACTIVE");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof Boolean;
+
+		if ((Boolean) pairs[0].value) {
 			g.setColor(Color.BLUE);
 			g.setFont(new Font(font.getName(), Font.BOLD, font.getSize()));
 		}

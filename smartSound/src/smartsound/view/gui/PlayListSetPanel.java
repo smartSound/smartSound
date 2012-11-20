@@ -17,7 +17,6 @@
 
 package smartsound.view.gui;
 
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -33,6 +32,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 
 import javax.swing.BorderFactory;
@@ -40,61 +40,63 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 
+import smartsound.common.IAddObserver;
+import smartsound.common.IChangeObserver;
 import smartsound.common.IObserver;
+import smartsound.common.IRemoveObserver;
 import smartsound.common.Tuple;
 import smartsound.view.AbstractViewController.PositionType;
-import smartsound.view.ILayoutObserver;
-import smartsound.view.Layout;
+import smartsound.view.LayoutManager;
 
-public class PlayListSetPanel extends JPanel implements IGUILadder, IObserver, ILayoutObserver {
+public class PlayListSetPanel extends JPanel implements IGUILadder, IObserver, IChangeObserver, IRemoveObserver, IAddObserver {
 
 	private final IGUILadder parent;
 	private final UUID playListSetUUID;
+	private final UUID layoutUUID;
 	private final Map<UUID, JPanel> panelMap = new HashMap<UUID, JPanel>();
 	private Point dragMousePosition = null;
 	private int dragDeltaX = -1;
 	private int dragDeltaY = -1;
+	private String title;
 
-	public PlayListSetPanel(final IGUILadder parent, final UUID playListSetUUID) {
+	public PlayListSetPanel(final IGUILadder parent, final UUID playListSetUUID, final UUID layoutUUID) {
 		super(new GridBagLayout());
 		setBorder(BorderFactory.createEmptyBorder(2,2,2,2));
 
 		this.playListSetUUID = playListSetUUID;
+		this.layoutUUID = layoutUUID;
 		this.parent = parent;
 
 		setMinimumSize(new Dimension(400,400));
 		getGUIController().addObserver(this, playListSetUUID);
-		getGUIController().addLayoutObserver(this,  playListSetUUID);
+		LayoutManager.add(layoutUUID, "ADDOBSERVER", this);
+		LayoutManager.add(layoutUUID, "CHANGEOBSERVER", this);
+		getGUIController().add(playListSetUUID, "CHANGEOBSERVER", this);
+
 		refresh();
 	}
 
 	private void refresh() {
-		panelMap.clear();
+		/*panelMap.clear();
 
 		//TODO: Extend for embedded PlayListSets
-		List<UUID> childElements = getGUIController().getPlayListUUIDs(playListSetUUID);
+		NameValuePair[] pairs = getGUIController().get(playListSetUUID, "PLAYLISTS");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof List<?>;
+
+		List<UUID> childElements = (List<UUID>) pairs[0].value;
+
 		if (childElements != null)
 			for (UUID uuid : childElements) {
+				pairs = getGUIController().get(uuid, "NAME");
+				assert pairs.length == 1;
+				assert pairs[0].value instanceof String;
+
 				PlayListPanelBorder border = new PlayListPanelBorder(this,
-						new PlayListDataModel(getGUIController(), uuid), getGUIController().getTitle(uuid));
+						new PlayListDataModel(getGUIController(), uuid), (String) pairs[0].value);
 
 				add(border.getPanel(), uuid, false);
-			}
-		updateLayout();
-	}
-
-	public void add(final PlayListSetPanel panel, final UUID uuid) {
-		add(panel, uuid, true);
-	}
-
-	public void add(final PlayListSetPanel panel, final UUID uuid, final boolean updateLayout) {
-		panelMap.put(uuid, panel);
-		if (updateLayout)
-			updateLayout();
-	}
-
-	public void add(final PlayListPanel panel, final UUID uuid) {
-		add(panel, uuid, true);
+			}*/
 	}
 
 	public void add(final PlayListPanel panel, final UUID uuid, final boolean updateLayout) {
@@ -165,19 +167,15 @@ public class PlayListSetPanel extends JPanel implements IGUILadder, IObserver, I
 				dragDeltaX = -1;
 				dragDeltaY = -1;
 
-				getGUIController().shiftElement(uuid, cell.first, cell.second, alignment);
+				Map<String, Object> values = new HashMap<String, Object>();
+				values.put("X", cell.first);
+				values.put("Y", cell.second);
+				values.put("ALIGNMENT", alignment.toString());
+				LayoutManager.set(layoutUUID, values);
 
-				revalidate();
-				repaint();
 			}
 
 		});
-		if (updateLayout)
-			updateLayout();
-	}
-
-	public void updateLayout() {
-		updateLayout(getGUIController().getLayout(playListSetUUID));
 	}
 
 	private Tuple<Integer, Integer> getGridPosition(final Point pos) {
@@ -264,45 +262,7 @@ public class PlayListSetPanel extends JPanel implements IGUILadder, IObserver, I
 
 	}
 
-	@Override
-	public void updateLayout(final Layout layout) {
-		removeAll();
-
-		int count = 0;
-		int run = 0;
-		int x;
-		int y;
-		UUID uuid;
-		while (count < layout.getCount()) {
-			for (int i = 0; i < 2*run + 1; i++) {
-				x = run - Math.max(0,  i - run);
-				y = Math.min(i,run);
-
-				uuid = layout.getByCoordinates(x, y);
-				if (uuid == null)
-					continue;
-
-				if (!panelMap.containsKey(uuid)) { //panel was not loaded yet
-					JPanel redPanel = new JPanel();
-					redPanel.setBackground(Color.RED);
-					put(redPanel, x, y, 1, 1);
-					count++;
-					continue;
-				}
-
-				//TODO: adjust width/height for non-collapsed playlistsets
-				put(panelMap.get(uuid), x, y, 1, 1);
-				count++;
-			}
-			run++;
-		}
-
-		revalidate();
-		repaint();
-		updateMinimumSize();
-	}
-
-	private void put(final JPanel panel, final int x, final int y, final int width, final int height) {
+	private void put(final JPanel panel, final int x, final int y) {
 		GridBagConstraints c = new GridBagConstraints();
 		c.fill = GridBagConstraints.BOTH;
 		c.weightx = 0.5f;
@@ -310,8 +270,6 @@ public class PlayListSetPanel extends JPanel implements IGUILadder, IObserver, I
 
 		c.gridx = x;
 		c.gridy = y;
-		c.gridwidth = width;
-		c.gridheight = height;
 
 		add(panel, c);
 	}
@@ -373,5 +331,84 @@ public class PlayListSetPanel extends JPanel implements IGUILadder, IObserver, I
 	@Override
 	public void update(final UUID uuid) {
 		refresh();
+	}
+
+	public void moveTo(final int x, final int y, final PositionType alignment) {
+		Map<String, Object> values = new HashMap<String, Object>();
+		values.put("X", x);
+		values.put("Y", y);
+		values.put("ALIGNMENT", alignment.toString());
+
+		LayoutManager.set(layoutUUID, values);
+	}
+
+	@Override
+	public void elementRemoved(final UUID elementUUID) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void elementChanged(final UUID elementUUID, final Map<String, Object> values) {
+		if (elementUUID.equals(layoutUUID)) {
+			layoutChanged(values);
+		}
+
+		if (elementUUID.equals(playListSetUUID)) {
+			propertiesChanged(values);
+		}
+
+
+	}
+
+	private void layoutChanged(final Map<String, Object> values) {
+		int x = (Integer) values.get("X");
+		int y = (Integer) values.get("Y");
+
+		if (parent instanceof TabbedPane) {
+			((TabbedPane) parent).movedTo(this, x);
+		} else if (parent instanceof PlayListSetPanel) {
+			((PlayListSetPanel) parent).movedTo(this, x, y);
+		}
+	}
+
+	public void movedTo(final JPanel panel, final int x, final int y) {
+		remove(panel);
+		put(panel, x, y);
+	}
+
+	private void propertiesChanged(final Map<String, Object> values) {
+		for (Entry<String, Object> entry : values.entrySet()) {
+			switch (entry.getKey()) {
+			case "NAME":
+				setTitle((String) entry.getValue());
+				break;
+			}
+		}
+	}
+
+	private void setTitle(final String newTitle) {
+		title = newTitle;
+
+		if (parent instanceof TabbedPane) {
+			((TabbedPane) parent).updateTitle(this);
+		} else if (parent instanceof PlayListSetPanel) {
+			((PlayListSetPanel) parent).updateTitle(this);
+		}
+	}
+
+	private void updateTitle(final PlayListSetPanel playListSetPanel) {
+		// TODO Auto-generated method stub
+
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	@Override
+	public void elementAdded(final UUID parentUUID, final UUID newElementUUID) {
+		//TODO: Extend for nested sets
+		PlayListPanelBorder border = new PlayListPanelBorder(this, newElementUUID);
 	}
 }

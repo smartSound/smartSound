@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -17,18 +17,23 @@
 
 package smartsound.controller;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.Properties;
 
 public class PluginDescription
 {
-    private File pluginJar;
-    private String name;
-    private String version;
-    private String className;
-    private String description;
+	private File pluginJar;
+	private String name;
+	private String version;
+	private String className;
+	private String description;
 
-	public PluginDescription(File f) {
+	public PluginDescription(final File f) {
 		try {
 			description = "";
 			BufferedReader rdr;
@@ -46,15 +51,19 @@ public class PluginDescription
 			pluginJar = new File((new StringBuilder(String.valueOf(dir
 					.getAbsolutePath()))).append("/")
 					.append(properties.getProperty("filename")).toString());
-			stream = new BufferedInputStream(new FileInputStream(
-					(new StringBuilder()).append(dir).append("/desc-en.html")
-							.toString()));
-			rdr = new BufferedReader(new FileReader((new StringBuilder())
-					.append(dir).append("/desc-en.html").toString()));
+			File descriptionFile = new File((new StringBuilder()).append(dir).append("/desc-en.html")
+					.toString());
+			if (descriptionFile.exists()) {
+				stream = new BufferedInputStream(new FileInputStream(descriptionFile));
+				rdr = new BufferedReader(new FileReader((new StringBuilder())
+						.append(dir).append("/desc-en.html").toString()));
 
-			String line;
-			while ((line = rdr.readLine()) != null) {
-				description += line;
+				String line;
+				while ((line = rdr.readLine()) != null) {
+					description += line;
+				}
+			} else {
+				description = "<html><body><h1>No description available!</h1></body></html>";
 			}
 
 		} catch (IOException e) {
@@ -63,35 +72,36 @@ public class PluginDescription
 
 	}
 
-    public File getPluginJar()
-    {
-        return pluginJar;
-    }
+	public File getPluginJar()
+	{
+		return pluginJar;
+	}
 
-    public String getName()
-    {
-        return name;
-    }
+	public String getName()
+	{
+		return name;
+	}
 
-    public String getVersion()
-    {
-        return version;
-    }
+	public String getVersion()
+	{
+		return version;
+	}
 
-    public String getClassName()
-    {
-        return className;
-    }
+	public String getClassName()
+	{
+		return className;
+	}
 
-    public String getDescription()
-    {
-        return description;
-    }
+	public String getDescription()
+	{
+		return description;
+	}
 
-    public String toString()
-    {
-        return name;
-    }
+	@Override
+	public String toString()
+	{
+		return name;
+	}
 
 
 

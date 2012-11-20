@@ -30,6 +30,8 @@ import java.util.UUID;
 
 import javax.swing.JPopupMenu;
 
+import smartsound.common.IElement.NameValuePair;
+
 public class VolumeLabel extends ButtonLabel implements IGUILadder {
 
 	private boolean showVolume = false;
@@ -43,7 +45,11 @@ public class VolumeLabel extends ButtonLabel implements IGUILadder {
 		this.uuid = uuid;
 		this.parent = parent;
 
-		volume = getGUIController().getVolume(uuid);
+		NameValuePair[] pairs = getGUIController().get(uuid, "VOLUME");
+		assert pairs.length == 1;
+		assert pairs[0].value instanceof Float;
+
+		volume = (Float) pairs[0].value;
 	}
 
 	public boolean isShowVolume() {

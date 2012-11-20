@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2012 André Becker
  *	
  *	This program is free software: you can redistribute it and/or modify
@@ -27,30 +27,30 @@ import java.util.UUID;
 
 public class ItemDataTransferable implements Transferable {
 
-	private UUID playListUUID;
-	private List<UUID> itemUUIDs;
+	private final UUID playListUUID;
+	private final List<UUID> itemUUIDs;
 	public static final DataFlavor itemDataFlavor = getDataFlavor();
 	private static DataFlavor[] dataFlavors = {itemDataFlavor, DataFlavor.stringFlavor};
-	
+
 	private static DataFlavor getDataFlavor() {
 		DataFlavor result = null;
 		try {
 			result = new DataFlavor(DataFlavor.javaJVMLocalObjectMimeType +
-			        ";class=smartsound.player.ItemData");
+					";class=smartsound.view.gui.ItemData");
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
-		
+
 		return result;
 	}
-	
-	public ItemDataTransferable(UUID playListUUID, List<UUID> itemUUIDs) {
+
+	public ItemDataTransferable(final UUID playListUUID, final List<UUID> itemUUIDs) {
 		this.playListUUID = playListUUID;
 		this.itemUUIDs = new LinkedList<UUID>(itemUUIDs);
 	}
-	
+
 	@Override
-	public Object getTransferData(DataFlavor dataFlavor)
+	public Object getTransferData(final DataFlavor dataFlavor)
 			throws UnsupportedFlavorException, IOException {
 		if (dataFlavor.equals(itemDataFlavor)) {
 			return new ItemList(playListUUID, itemUUIDs);
@@ -59,18 +59,18 @@ public class ItemDataTransferable implements Transferable {
 		}
 		throw new UnsupportedOperationException("Unsupported DataFlavor '" + dataFlavor + "'");
 	}
-	
+
 	public UUID getPlayListUUID() {
 		return this.playListUUID;
 	}
- 
+
 	@Override
 	public DataFlavor[] getTransferDataFlavors() {
 		return dataFlavors;
 	}
 
 	@Override
-	public boolean isDataFlavorSupported(DataFlavor dataFlavor) {
+	public boolean isDataFlavorSupported(final DataFlavor dataFlavor) {
 		return (dataFlavor.equals(dataFlavors[0])
 				|| dataFlavor.equals(dataFlavors[1]));
 	}

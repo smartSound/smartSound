@@ -17,11 +17,13 @@
 
 package smartsound.player;
 
+import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import smartsound.common.IElement;
 import smartsound.common.PropertyMap;
 import smartsound.player.events.ITimeEventListener;
 import smartsound.player.events.TimeEventHandler;
@@ -35,13 +37,13 @@ import smartsound.plugins.player.ISound;
  * @author André Becker
  *
  */
-public class PlayListItem implements ITimeEventListener {
+public class PlayListItem extends PlayListSetElement implements ITimeEventListener, IElement {
 
 	private PlayerControllerSettings settings;
 
-	private UUID uuid = UUID.randomUUID();
 	private boolean repeatItem = false;
 	private UUID chainWith = null;
+	private PlayListItem nextItem = null;
 
 	private volatile PlayList parent;
 	private final ISound sound;
@@ -51,6 +53,7 @@ public class PlayListItem implements ITimeEventListener {
 	private boolean dispose = false;
 
 	public PlayListItem(final ISound sound, final PlayerControllerSettings settings, final PlayList parent) {
+		super(UUID.randomUUID(), parent);
 		this.settings = settings;
 		this.parent = parent;
 		this.sound = sound;
@@ -63,6 +66,7 @@ public class PlayListItem implements ITimeEventListener {
 	 * 	<c>PlayerWrapper</c>s are reused.
 	 */
 	public PlayListItem(final PlayListItem playListItem, final boolean move) {
+		super(playListItem.getUUID(), playListItem.parent);
 		this.settings = playListItem.settings;
 		this.repeatItem = playListItem.repeatItem;
 		this.chainWith = playListItem.chainWith;
@@ -86,12 +90,12 @@ public class PlayListItem implements ITimeEventListener {
 	 * @param map The <c>PropertyMap</c>.
 	 * @throws LoadingException If an error occurs during loading.
 	 */
-	public PlayListItem(final PropertyMap map) throws LoadingException {
+	public PlayListItem(final PropertyMap map, final PlayList parent) throws LoadingException {
+		super(map.getMapUUID(), parent);
 		if (!map.get("type").equals(getClass().getCanonicalName())) {
 			throw new LoadingException();
 		}
 
-		uuid = map.getMapUUID();
 		repeatItem = Boolean.parseBoolean(map.get("repeat"));
 		if (!map.get("chain_with").equals("null")) {
 			chainWith = UUID.fromString(map.get("chain_with"));
@@ -142,7 +146,7 @@ public class PlayListItem implements ITimeEventListener {
 	 * @return The other item's <c>UUID</c> or <c>null</c> if no chaining
 	 * 	exists.
 	 */
-	public UUID getChainWith() {
+	public UUID getChainedWith() {
 		return chainWith;
 	}
 
@@ -154,13 +158,6 @@ public class PlayListItem implements ITimeEventListener {
 	public void setChainWith(final UUID chainWith) {
 		this.chainWith = chainWith;
 		parent.playListChanged();
-	}
-
-	/**
-	 * @return The <c>UUID</c> identifying this item.
-	 */
-	public UUID getUUID() {
-		return uuid;
 	}
 
 	/**
@@ -180,6 +177,7 @@ public class PlayListItem implements ITimeEventListener {
 	/**
 	 * @return <c>true</c> if the item is playing or paused.
 	 */
+	@Override
 	public boolean isActive() {
 		boolean result = false;
 
@@ -194,6 +192,7 @@ public class PlayListItem implements ITimeEventListener {
 	/**
 	 * Starts or resumes this item.
 	 */
+	@Override
 	public void play() {
 		if (!isActive()) {
 			startPlaying();
@@ -204,8 +203,26 @@ public class PlayListItem implements ITimeEventListener {
 	}
 
 	/**
+	 * Causes this item to stop and play the given item as the next one.
+	 */
+	public void playNext(final PlayListItem next) {
+		nextItem = next;
+
+		int fadeOutEnd;
+		IPlayer player;
+
+		for (PlayerWrapper pWrapper : wrappers) {
+			player = pWrapper.getPlayer();
+			fadeOutEnd = Math.min(player.getPlayPosition() + Math.max(settings.getOverlapTime(), settings.getFadeOutLength()), player.getPlayLength());
+			pWrapper.setFadeOutEnd(fadeOutEnd);
+		}
+		parent.playListChanged();
+	}
+
+	/**
 	 * Pauses this item.
 	 */
+	@Override
 	public synchronized void pause() {
 		int fadeOutEnd;
 		IPlayer player;
@@ -224,6 +241,7 @@ public class PlayListItem implements ITimeEventListener {
 	/**
 	 * Stops this item.
 	 */
+	@Override
 	public void stop() {
 		int fadeOutEnd;
 		IPlayer player;
@@ -289,10 +307,17 @@ public class PlayListItem implements ITimeEventListener {
 
 		IPlayer player = pWrapper.getPlayer();
 
-		if (settings != null &&
-				!pWrapper.isNextSoundStarted()
-				&& (player.isFinished() || player.getPlayLength() - player.getPlayPosition() <= settings
-				.getOverlapTime())) {
+		int playPosition = player.getPlayPosition();
+
+
+		if (settings != null
+				&& !pWrapper.isNextSoundStarted()
+				&& pWrapper.getStatus() == PlayerControllerStatus.PLAYING
+				&& (player.isFinished()
+						|| (pWrapper.getFadeOutEnd() - playPosition <= settings.getOverlapTime())
+						)
+				) {
+			System.out.println("first old block");
 			pWrapper.setNextSoundStarted(true);
 			nextSound();
 		}
@@ -308,6 +333,17 @@ public class PlayListItem implements ITimeEventListener {
 		if ((pWrapper.getStatus() == PlayerControllerStatus.STOPPING
 				&& pWrapper.getVolume() == 0)
 				|| player.isFinished())  {
+			System.out.println("old block");
+			player.stop();
+
+			wrappers.remove(pWrapper);
+			if (parent != null) {
+				parent.playListChanged();
+			}
+			return false;
+		}
+
+		if (playPosition >= pWrapper.getFadeOutEnd()) {
 			player.stop();
 
 			wrappers.remove(pWrapper);
@@ -320,6 +356,12 @@ public class PlayListItem implements ITimeEventListener {
 	}
 
 	private void nextSound() {
+
+		if (nextItem != null) {
+			nextItem.startPlaying();
+			nextItem = null;
+			return;
+		}
 
 		if (repeatItem) {
 			startPlaying();
@@ -335,7 +377,7 @@ public class PlayListItem implements ITimeEventListener {
 			}
 		}
 
-		entry = parent.getNextEntry(uuid);
+		entry = parent.getNextEntry(getUUID());
 		if (entry != null) {
 			entry.startPlaying();
 		}
@@ -365,6 +407,7 @@ public class PlayListItem implements ITimeEventListener {
 		setCurrentVolume(pWrapper);
 		wrappers.add(pWrapper);
 		player.play();
+		pWrapper.setStatus(PlayerControllerStatus.PLAYING);
 
 		TimeEventHandler.add(this, pWrapper);
 		parent.playListChanged();
@@ -382,6 +425,7 @@ public class PlayListItem implements ITimeEventListener {
 			pWrapper.setFadeOutEnd(player.getPlayLength());
 			setCurrentVolume(pWrapper);
 			player.play();
+			pWrapper.setStatus(PlayerControllerStatus.PLAYING);
 		}
 	}
 
@@ -403,8 +447,9 @@ public class PlayListItem implements ITimeEventListener {
 	 * <c>PlayListItem</c>.
 	 * 
 	 */
+	@Override
 	public PropertyMap getPropertyMap() {
-		PropertyMap map = new PropertyMap(uuid);
+		PropertyMap map = new PropertyMap(getUUID());
 
 		map.put("type", getClass().getCanonicalName());
 		map.put("repeat", String.valueOf(this.repeatItem));
@@ -415,7 +460,110 @@ public class PlayListItem implements ITimeEventListener {
 		return map;
 	}
 
+	@Override
 	public void dispose() {
 		dispose  = true;
+	}
+
+	@Override
+	public IElement add(final String elementType, final Object... params) {
+		//TODO: implement if necessary
+		return null;
+	}
+
+	@Override
+	public void remove() {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	protected Object get(final String propertyName) {
+		switch (propertyName) {
+		case "CHAINEDWITH":
+			return getChainedWith();
+		case "PARENT":
+			return getParent().getUUID();
+		case "ACTIVE":
+			return isActive();
+		case "REPEAT":
+			return isRepeatItem();
+		case "INDEX":
+			return parent.getEntryIndex(getUUID());
+		}
+		return super.get(propertyName);
+	}
+
+	@Override
+	protected void set(final String propertyName, final Object value) {
+		switch (propertyName) {
+		case "CHAINEDWITH":
+			if (value instanceof UUID)
+				setChainWith((UUID) value);
+			break;
+		case "PARENT":
+			if (value instanceof PlayList)
+				setParent(parent);
+			break;
+		case "REPEAT":
+			if (value instanceof Boolean)
+				setRepeatItem((Boolean) value);
+			break;
+		}
+	}
+
+	@Override
+	protected void act(final String actionType) {
+		switch (actionType) {
+		case "PAUSE":
+			pause();
+			break;
+		case "PLAY":
+			play();
+			break;
+		case "STOP":
+			stop();
+			break;
+		}
+	}
+
+	@Override
+	protected String getName() {
+		return new File(sound.getFilePath()).getName();
+	}
+
+	@Override
+	protected float getVolume() {
+		return 0.5f;
+	}
+
+	@Override
+	protected void setVolume(final float volume) {
+		//TODO: do something
+	}
+
+	@Override
+	protected void setParentVolume(final float volume) {
+		//TODO: do something;
+	}
+
+	@Override
+	protected boolean getAutoPlay() {
+		return false;
+	}
+
+	@Override
+	protected void setAutoPlay(final boolean autoPlay) {
+		//TODO: do something
+	}
+
+	@Override
+	protected void setName(final String name) {
+		//TODO: do something
+	}
+
+	@Override
+	protected void notifyChangeObservers(final String... propertyNames) {
+		//TODO: Do something
 	}
 }
